@@ -43,57 +43,102 @@ const DEFAULT_QUESTIONS = [
 async function exportPDF(room) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:"mm", format:"a4" });
-  const W=210, M=16, cW=W-M*2; let y=M;
+  const W=210, M=14, cW=W-M*2; let y=M;
   const hx=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
   const sf=c=>doc.setFillColor(...hx(c));
   const sc=c=>doc.setTextColor(...hx(c));
+  const colors=["#0D9E9E","#F07030","#8B5CF6","#EC4899","#10B981"];
 
+  // ── Header bar
   sf(T.teal); doc.rect(0,0,W,28,"F");
   sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(20);
   doc.text("Retrospective Results",M,13);
   doc.setFontSize(9); doc.setFont("helvetica","normal");
-  doc.text(`Generated: ${new Date().toLocaleString()}   |   Room: ${room.id}`,M,21);
+  doc.text(`Generated: ${new Date().toLocaleString()}   |   Room: ${room.id}`,M,22);
   y=36;
 
   const parts=Object.values(room.participants||{}).filter(p=>p.submitted);
   const questions=room.questions||DEFAULT_QUESTIONS;
-  sc(T.tealDark); doc.setFont("helvetica","bold"); doc.setFontSize(13);
-  doc.text("Team Scores",M,y); y+=6;
-
-  // Header
-  sf(T.teal); doc.rect(M,y,cW,7,"F");
-  sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(8);
-  doc.text("Name",M+2,y+5);
-  questions.forEach((q,i)=>{ const x=M+55+(i*35); if(x<M+cW-5) doc.text(q.label.slice(0,18),x,y+5); });
-  y+=7;
-
   const avg=qid=>{ const v=parts.map(p=>p.scores?.[qid]).filter(Boolean); return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"-"; };
-  parts.forEach((p,i)=>{
-    if(i%2===0){sf(T.gray50);doc.rect(M,y,cW,7,"F");}
-    sc(T.dark); doc.setFont("helvetica","normal"); doc.setFontSize(8);
-    doc.text(p.name||"",M+2,y+5);
-    questions.forEach((q,j)=>{ const x=M+57+(j*35); if(x<M+cW-5) doc.text(String(p.scores?.[q.id]??"-"),x,y+5); });
-    y+=7;
-  });
-  sf(T.orangeBg); doc.rect(M,y,cW,7,"F");
-  sc(T.orangeDark); doc.setFont("helvetica","bold"); doc.setFontSize(8);
-  doc.text("Averages",M+2,y+5);
-  questions.forEach((q,j)=>{ const x=M+57+(j*35); if(x<M+cW-5) doc.text(avg(q.id),x,y+5); });
-  y+=14;
 
+  // ── Section title
+  sc(T.tealDark); doc.setFont("helvetica","bold"); doc.setFontSize(13);
+  doc.text("Team Scores",M,y); y+=7;
+
+  // ── Table layout: rows=questions, cols=participants + avg
+  // Calculate column widths dynamically
+  const qColW=58; // question label column
+  const dataColW=Math.min(22, Math.floor((cW-qColW)/(parts.length+1)));
+  const tableW=qColW+(parts.length+1)*dataColW;
+  const rowH=9;
+
+  // Header row — participant names
+  sf(T.teal); doc.rect(M,y,tableW,rowH,"F");
+  sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
+  doc.text("Question",M+2,y+6);
+  parts.forEach((p,i)=>{
+    const x=M+qColW+i*dataColW;
+    const name=(p.name||"").slice(0,8)+(p.name?.length>8?"…":"");
+    doc.text(name,x+dataColW/2,y+6,{align:"center"});
+  });
+  // Avg header
+  const avgX=M+qColW+parts.length*dataColW;
+  sf("#076F6F"); doc.rect(avgX,y,dataColW,rowH,"F");
+  sc(T.white); doc.text("Avg",avgX+dataColW/2,y+6,{align:"center"});
+  y+=rowH;
+
+  // Data rows — one per question
+  questions.forEach((q,qi)=>{
+    const c=colors[qi%colors.length];
+    // alternating row bg
+    if(qi%2===0){sf(T.offWhite);}else{sf(T.white);}
+    doc.rect(M,y,tableW,rowH,"F");
+    // left border color indicator
+    sf(c); doc.rect(M,y,3,rowH,"F");
+    // question label
+    sc(T.dark); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
+    const label=q.label.length>28?q.label.slice(0,27)+"…":q.label;
+    doc.text(label,M+5,y+6);
+    // scores per participant
+    doc.setFont("helvetica","normal");
+    parts.forEach((p,i)=>{
+      const score=String(p.scores?.[q.id]??"-");
+      const x=M+qColW+i*dataColW;
+      sc(T.dark);
+      doc.text(score,x+dataColW/2,y+6,{align:"center"});
+    });
+    // avg cell
+    const avgVal=avg(q.id);
+    sf(c); const ax=M+qColW+parts.length*dataColW;
+    doc.rect(ax,y,dataColW,rowH,"F");
+    sc(T.white); doc.setFont("helvetica","bold");
+    doc.text(avgVal,ax+dataColW/2,y+6,{align:"center"});
+    y+=rowH;
+  });
+
+  // border around table
+  doc.setDrawColor(...hx(T.gray100));
+  doc.setLineWidth(0.3);
+  doc.rect(M,y-questions.length*rowH-rowH,tableW,questions.length*rowH+rowH);
+  y+=10;
+
+  // ── Board columns
   for(const col of COLUMNS){
     if(y>260){doc.addPage();y=M;}
-    sf(col==="Stop"?"#FF6B6B":col==="Start"?T.teal:T.orange);
-    doc.rect(M,y,cW,8,"F"); sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+    const cc=col==="Stop"?"#FF6B6B":col==="Start"?T.teal:T.orange;
+    sf(cc); doc.rect(M,y,cW,8,"F");
+    sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(11);
     doc.text(col,M+3,y+6); y+=10;
+
     (room.boardEntries||[]).filter(e=>e.column===col).forEach(e=>{
       if(y>270){doc.addPage();y=M;}
       sc(T.gray500); doc.setFont("helvetica","bold"); doc.setFontSize(8);
-      doc.text((e.participantName||"")+":",M+3,y+4);
+      doc.text((e.participantName||"").slice(0,15)+":",M+3,y+4);
       sc(T.dark); doc.setFont("helvetica","normal");
-      const lines=doc.splitTextToSize(e.text||"",cW-40);
-      doc.text(lines,M+38,y+4); y+=lines.length*5+2;
+      const lines=doc.splitTextToSize(e.text||"",cW-42);
+      doc.text(lines,M+40,y+4); y+=Math.max(lines.length*5,5)+2;
     });
+
     const acts=(room.actions?.[col])||[];
     if(acts.length){
       if(y>265){doc.addPage();y=M;}
@@ -107,7 +152,7 @@ async function exportPDF(room) {
         doc.text(lines,M+6,y+4); y+=lines.length*5+1;
       });
     }
-    y+=4;
+    y+=5;
   }
   doc.save(`retrospective-${room.id}-${new Date().toISOString().slice(0,10)}.pdf`);
 }
@@ -323,14 +368,13 @@ function ScoresSummary({ participants, questions }) {
   const parts=Object.values(participants||{}).filter(p=>p.submitted);
   const avg=qid=>{ const v=parts.map(p=>p.scores?.[qid]).filter(Boolean); return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"-"; };
   const colors=["#0D9E9E","#F07030","#8B5CF6","#EC4899","#10B981"];
-  const trunc=(s,n)=>s.length>n?s.slice(0,n)+"…":s;
 
-  // Score cards — full label visible
   return (
     <div>
-      <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
+      {/* Score cards — full label, always readable */}
+      <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
         {questions.map((q,i)=>(
-          <div key={q.id} style={{flex:"1 1 150px",background:T.white,borderRadius:14,padding:"14px 18px",
+          <div key={q.id} style={{flex:"1 1 140px",background:T.white,borderRadius:14,padding:"14px 16px",
             boxShadow:`0 3px 14px ${colors[i%colors.length]}20`,borderTop:`4px solid ${colors[i%colors.length]}`}}>
             <div style={{fontSize:11,color:T.gray500,fontWeight:600,marginBottom:6,lineHeight:1.4}}>{q.label}</div>
             <div style={{fontSize:30,fontWeight:900,color:colors[i%colors.length]}}>{avg(q.id)}</div>
@@ -339,45 +383,48 @@ function ScoresSummary({ participants, questions }) {
         ))}
       </div>
 
-      {/* Scrollable table */}
+      {/* Table: rows = questions, cols = participants + avg
+          This way question labels are always fully visible in the first column */}
       <div style={{borderRadius:14,overflow:"hidden",boxShadow:`0 3px 14px ${T.teal}15`,overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",minWidth:320}}>
+        <table style={{width:"100%",borderCollapse:"collapse",tableLayout:"auto"}}>
           <thead>
             <tr style={{background:T.teal}}>
-              <th style={{padding:"10px 14px",textAlign:"left",color:T.white,fontWeight:700,fontSize:13,whiteSpace:"nowrap",minWidth:100}}>Participant</th>
-              {questions.map((q,i)=>(
-                <th key={q.id} style={{padding:"10px 10px",textAlign:"center",color:T.white,fontWeight:700,fontSize:11,minWidth:70}}>
-                  <div style={{maxWidth:90,margin:"0 auto",lineHeight:1.3,wordBreak:"break-word"}}>{trunc(q.label,22)}</div>
+              <th style={{padding:"10px 16px",textAlign:"left",color:T.white,fontWeight:700,fontSize:13,whiteSpace:"nowrap",minWidth:180}}>
+                Question
+              </th>
+              {parts.map(p=>(
+                <th key={p.name} style={{padding:"10px 8px",textAlign:"center",color:T.white,fontWeight:700,fontSize:12,minWidth:60,whiteSpace:"nowrap"}}>
+                  {p.name}
                 </th>
               ))}
+              <th style={{padding:"10px 8px",textAlign:"center",color:T.white,fontWeight:800,fontSize:12,minWidth:60,background:"rgba(0,0,0,.15)",whiteSpace:"nowrap"}}>
+                Avg
+              </th>
             </tr>
           </thead>
           <tbody>
-            {parts.map((p,i)=>(
-              <tr key={p.name} style={{background:i%2===0?T.offWhite:T.white}}>
-                <td style={{padding:"10px 14px",fontWeight:600,color:T.dark,fontSize:14,whiteSpace:"nowrap"}}>
-                  {trunc(p.name,15)}
-                </td>
-                {questions.map((q,j)=>(
-                  <td key={q.id} style={{padding:"10px",textAlign:"center"}}>
-                    <span style={{background:colors[j%colors.length],color:T.white,borderRadius:8,padding:"3px 12px",fontWeight:800,fontSize:14,display:"inline-block"}}>
-                      {p.scores?.[q.id]??"-"}
+            {questions.map((q,qi)=>{
+              const c=colors[qi%colors.length];
+              return(
+                <tr key={q.id} style={{background:qi%2===0?T.offWhite:T.white}}>
+                  <td style={{padding:"10px 16px",fontWeight:600,color:T.dark,fontSize:13,borderLeft:`4px solid ${c}`}}>
+                    {q.label}
+                  </td>
+                  {parts.map(p=>(
+                    <td key={p.name} style={{padding:"10px 8px",textAlign:"center"}}>
+                      <span style={{background:c,color:T.white,borderRadius:8,padding:"3px 10px",fontWeight:800,fontSize:14,display:"inline-block"}}>
+                        {p.scores?.[q.id]??"-"}
+                      </span>
+                    </td>
+                  ))}
+                  <td style={{padding:"10px 8px",textAlign:"center",background:`${c}15`}}>
+                    <span style={{background:c,color:T.white,borderRadius:8,padding:"3px 10px",fontWeight:900,fontSize:14,display:"inline-block"}}>
+                      {avg(q.id)}
                     </span>
                   </td>
-                ))}
-              </tr>
-            ))}
-            {/* Averages row */}
-            <tr style={{background:T.tealBg,borderTop:`2px solid ${T.teal}30`}}>
-              <td style={{padding:"10px 14px",fontWeight:800,color:T.tealDark,fontSize:13}}>Averages</td>
-              {questions.map((q,j)=>(
-                <td key={q.id} style={{padding:"10px",textAlign:"center"}}>
-                  <span style={{background:colors[j%colors.length],color:T.white,borderRadius:8,padding:"3px 12px",fontWeight:800,fontSize:14,display:"inline-block",opacity:.85}}>
-                    {avg(q.id)}
-                  </span>
-                </td>
-              ))}
-            </tr>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
