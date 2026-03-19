@@ -322,34 +322,64 @@ function BoardColumn({ col, entries, onMove, onReorder, onAddAction, actions, se
 function ScoresSummary({ participants, questions }) {
   const parts=Object.values(participants||{}).filter(p=>p.submitted);
   const avg=qid=>{ const v=parts.map(p=>p.scores?.[qid]).filter(Boolean); return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"-"; };
-  const colors=["#0D9E9E","#F07030","#8B5CF6","#EC4899","#10B981","#F59E0B"];
+  const colors=["#0D9E9E","#F07030","#8B5CF6","#EC4899","#10B981"];
+  const trunc=(s,n)=>s.length>n?s.slice(0,n)+"…":s;
+
+  // Score cards — full label visible
   return (
     <div>
       <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
         {questions.map((q,i)=>(
-          <div key={q.id} style={{flex:1,minWidth:160,background:T.white,borderRadius:14,padding:"16px 20px",
+          <div key={q.id} style={{flex:"1 1 150px",background:T.white,borderRadius:14,padding:"14px 18px",
             boxShadow:`0 3px 14px ${colors[i%colors.length]}20`,borderTop:`4px solid ${colors[i%colors.length]}`}}>
-            <div style={{fontSize:12,color:T.gray500,fontWeight:600,marginBottom:6}}>{q.label}</div>
-            <div style={{fontSize:32,fontWeight:900,color:colors[i%colors.length]}}>{avg(q.id)}</div>
+            <div style={{fontSize:11,color:T.gray500,fontWeight:600,marginBottom:6,lineHeight:1.4}}>{q.label}</div>
+            <div style={{fontSize:30,fontWeight:900,color:colors[i%colors.length]}}>{avg(q.id)}</div>
             <div style={{fontSize:11,color:T.gray300,marginTop:2}}>avg / {q.scale||5}</div>
           </div>
         ))}
       </div>
-      <div style={{background:T.white,borderRadius:14,overflow:"hidden",boxShadow:`0 3px 14px ${T.teal}15`}}>
-        <div style={{background:T.teal,padding:"10px 16px",display:"flex",gap:8,overflowX:"auto"}}>
-          <span style={{minWidth:120,color:T.white,fontWeight:700,fontSize:13}}>Participant</span>
-          {questions.map((q,i)=><span key={q.id} style={{minWidth:80,color:T.white,fontWeight:700,fontSize:11,flexShrink:0}}>{q.label.split(" ").slice(0,3).join(" ")}</span>)}
-        </div>
-        {parts.map((p,i)=>(
-          <div key={p.name} style={{display:"flex",gap:8,padding:"10px 16px",background:i%2===0?T.offWhite:T.white,alignItems:"center",overflowX:"auto"}}>
-            <span style={{minWidth:120,fontWeight:600,color:T.dark,fontSize:14}}>{p.name}</span>
-            {questions.map((q,j)=>(
-              <span key={q.id} style={{minWidth:80,flexShrink:0}}>
-                <span style={{background:colors[j%colors.length],color:T.white,borderRadius:8,padding:"3px 10px",fontWeight:800,fontSize:14}}>{p.scores?.[q.id]??"-"}</span>
-              </span>
+
+      {/* Scrollable table */}
+      <div style={{borderRadius:14,overflow:"hidden",boxShadow:`0 3px 14px ${T.teal}15`,overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",minWidth:320}}>
+          <thead>
+            <tr style={{background:T.teal}}>
+              <th style={{padding:"10px 14px",textAlign:"left",color:T.white,fontWeight:700,fontSize:13,whiteSpace:"nowrap",minWidth:100}}>Participant</th>
+              {questions.map((q,i)=>(
+                <th key={q.id} style={{padding:"10px 10px",textAlign:"center",color:T.white,fontWeight:700,fontSize:11,minWidth:70}}>
+                  <div style={{maxWidth:90,margin:"0 auto",lineHeight:1.3,wordBreak:"break-word"}}>{trunc(q.label,22)}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {parts.map((p,i)=>(
+              <tr key={p.name} style={{background:i%2===0?T.offWhite:T.white}}>
+                <td style={{padding:"10px 14px",fontWeight:600,color:T.dark,fontSize:14,whiteSpace:"nowrap"}}>
+                  {trunc(p.name,15)}
+                </td>
+                {questions.map((q,j)=>(
+                  <td key={q.id} style={{padding:"10px",textAlign:"center"}}>
+                    <span style={{background:colors[j%colors.length],color:T.white,borderRadius:8,padding:"3px 12px",fontWeight:800,fontSize:14,display:"inline-block"}}>
+                      {p.scores?.[q.id]??"-"}
+                    </span>
+                  </td>
+                ))}
+              </tr>
             ))}
-          </div>
-        ))}
+            {/* Averages row */}
+            <tr style={{background:T.tealBg,borderTop:`2px solid ${T.teal}30`}}>
+              <td style={{padding:"10px 14px",fontWeight:800,color:T.tealDark,fontSize:13}}>Averages</td>
+              {questions.map((q,j)=>(
+                <td key={q.id} style={{padding:"10px",textAlign:"center"}}>
+                  <span style={{background:colors[j%colors.length],color:T.white,borderRadius:8,padding:"3px 12px",fontWeight:800,fontSize:14,display:"inline-block",opacity:.85}}>
+                    {avg(q.id)}
+                  </span>
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -364,7 +394,7 @@ function SetupScreen({ hostName, onBack, onCreate }) {
     setQuestions(qs=>qs.map((q,i)=>i===idx?{...q,[field]:val}:q));
   }
   function addQuestion() {
-    if(questions.length>=8) return;
+    if(questions.length>=5) return;
     setQuestions(qs=>[...qs,{id:`q${uid()}`,label:"New question",low:"Low",high:"High",scale:5}]);
   }
   function removeQuestion(idx) {
@@ -386,7 +416,7 @@ function SetupScreen({ hostName, onBack, onCreate }) {
 
           {/* Questions */}
           <div style={{marginBottom:20}}>
-            <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:12}}>📊 Questions ({questions.length}/8)</div>
+            <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:12}}>📊 Questions ({questions.length}/5)</div>
             {questions.map((q,idx)=>(
               <div key={q.id} style={{background:T.gray50,borderRadius:12,padding:14,marginBottom:10,border:`1.5px solid ${T.gray100}`}}>
                 <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
@@ -417,10 +447,10 @@ function SetupScreen({ hostName, onBack, onCreate }) {
                 </div>
               </div>
             ))}
-            {questions.length<8&&(
+            {questions.length<5&&(
               <button onClick={addQuestion}
                 style={{width:"100%",padding:"10px",borderRadius:10,border:`2px dashed ${T.gray100}`,background:"none",color:T.gray500,fontWeight:700,fontSize:13,cursor:"pointer"}}>
-                + Add Question
+                + Add Question (max 5)
               </button>
             )}
           </div>
@@ -458,6 +488,7 @@ function HomeScreen({ onSetup, onJoin }) {
   const [joinOpen, setJoinOpen] = useState(false);
   const [howOpen,  setHowOpen]  = useState(false);
   const [error,    setError]    = useState("");
+  const MAX=15;
   const inp={width:"100%",padding:"12px 16px",borderRadius:12,border:`1.5px solid #DDE8E8`,fontSize:15,color:T.dark,outline:"none",boxSizing:"border-box",background:T.white};
   return (
     <div style={{minHeight:"100vh",background:"#E8F8F5",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px 16px"}}>
@@ -472,8 +503,13 @@ function HomeScreen({ onSetup, onJoin }) {
         <div style={{background:"#E8F8F5",borderRadius:16,padding:"20px 20px 22px",border:`1.5px solid ${T.tealLight}60`,marginBottom:10}}>
           <div style={{fontWeight:800,fontSize:15,color:T.tealDark,marginBottom:3}}>⚡ Quick Start</div>
           <div style={{color:"#7a9a9a",fontSize:13,marginBottom:14}}>Create instantly, share link, start your retro.</div>
-          <input style={inp} placeholder="Your name (as host)" value={hostName}
-            onChange={e=>{setHostName(e.target.value);setError("");}} autoFocus/>
+          <div style={{position:"relative"}}>
+            <input style={inp} placeholder="Your name (as host)" value={hostName} maxLength={MAX}
+              onChange={e=>{setHostName(e.target.value.slice(0,MAX));setError("");}} autoFocus/>
+            <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:11,color:hostName.length>=MAX?"#F07030":T.gray300}}>
+              {hostName.length}/{MAX}
+            </span>
+          </div>
           {error&&!joinOpen&&<div style={{color:T.orange,fontSize:13,marginTop:8}}>{error}</div>}
           <button onClick={()=>{if(!hostName.trim()){setError("Please enter your name");return;}onSetup(hostName.trim());}}
             style={{marginTop:12,width:"100%",background:"#E8A870",color:T.white,border:"none",borderRadius:14,padding:"13px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>
@@ -491,9 +527,14 @@ function HomeScreen({ onSetup, onJoin }) {
           {joinOpen&&(
             <div style={{padding:"0 20px 18px",borderTop:`1px solid ${T.gray100}`,background:"#fafefe"}}>
               <input style={{...inp,marginTop:14,marginBottom:8}} placeholder="Room ID or paste link" value={joinId} onChange={e=>setJoinId(e.target.value)}/>
-              <input style={{...inp,marginBottom:10}} placeholder="Your name" value={joinName}
-                onChange={e=>{setJoinName(e.target.value);setError("");}}
-                onKeyDown={e=>{if(e.key==="Enter")onJoin(joinId,joinName,setError);}}/>
+              <div style={{position:"relative",marginBottom:10}}>
+                <input style={inp} placeholder="Your name" value={joinName} maxLength={MAX}
+                  onChange={e=>{setJoinName(e.target.value.slice(0,MAX));setError("");}}
+                  onKeyDown={e=>{if(e.key==="Enter")onJoin(joinId,joinName,setError);}}/>
+                <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:11,color:joinName.length>=MAX?"#F07030":T.gray300}}>
+                  {joinName.length}/{MAX}
+                </span>
+              </div>
               {error&&joinOpen&&<div style={{color:T.orange,fontSize:13,marginBottom:8}}>{error}</div>}
               <button onClick={()=>onJoin(joinId,joinName,setError)}
                 style={{width:"100%",background:T.teal,color:T.white,border:"none",borderRadius:14,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
@@ -547,6 +588,7 @@ function HomeScreen({ onSetup, onJoin }) {
 function JoinScreen({ onJoin }) {
   const [name,setName]=useState("");
   const [error,setError]=useState("");
+  const MAX=15;
   return (
     <div style={{minHeight:"100vh",background:"#E8F8F5",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px"}}>
       <div style={{width:"100%",maxWidth:460,background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(13,158,158,.12)",padding:"36px 32px"}}>
@@ -555,10 +597,15 @@ function JoinScreen({ onJoin }) {
           <h1 style={{fontSize:24,fontWeight:900,color:"#1a2e2e",margin:"0 0 4px"}}>You're invited!</h1>
           <p style={{color:"#7a9a9a",margin:0,fontSize:14}}>Enter your name to join this retrospective.</p>
         </div>
-        <input value={name} onChange={e=>{setName(e.target.value);setError("");}}
-          onKeyDown={e=>e.key==="Enter"&&onJoin(name,setError)}
-          placeholder="Your name" autoFocus
-          style={{width:"100%",padding:"12px 16px",borderRadius:12,border:"1.5px solid #DDE8E8",fontSize:15,color:"#0A2020",outline:"none",boxSizing:"border-box"}}/>
+        <div style={{position:"relative"}}>
+          <input value={name} onChange={e=>{setName(e.target.value.slice(0,MAX));setError("");}}
+            onKeyDown={e=>e.key==="Enter"&&onJoin(name,setError)}
+            placeholder="Your name" autoFocus maxLength={MAX}
+            style={{width:"100%",padding:"12px 16px",borderRadius:12,border:"1.5px solid #DDE8E8",fontSize:15,color:"#0A2020",outline:"none",boxSizing:"border-box"}}/>
+          <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:11,color:name.length>=MAX?"#F07030":T.gray300}}>
+            {name.length}/{MAX}
+          </span>
+        </div>
         {error&&<div style={{color:"#F07030",fontSize:13,marginTop:6}}>{error}</div>}
         <button onClick={()=>onJoin(name,setError)}
           style={{marginTop:14,width:"100%",background:T.teal,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>
@@ -573,17 +620,18 @@ function JoinScreen({ onJoin }) {
 }
 
 // ─── SubmitButton ─────────────────────────────────────────────────────────────
-function SubmitButton({ allScored, onSubmit }) {
+function SubmitButton({ allScored, onSubmit, alreadySubmitted }) {
   const [error,setError]=useState("");
   return (
     <div>
       {error&&<div style={{color:"#F07030",fontWeight:600,marginBottom:10,textAlign:"center",fontSize:14}}>{error}</div>}
       <button onClick={()=>onSubmit(setError)}
-        style={{width:"100%",background:"#F07030",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:16,cursor:allScored?"pointer":"default",opacity:allScored?1:.5,transition:"opacity .2s"}}
+        style={{width:"100%",background:alreadySubmitted?"#0D9E9E":"#F07030",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:16,cursor:allScored?"pointer":"default",opacity:allScored?1:.5,transition:"all .2s"}}
         disabled={!allScored}>
-        ✅ Submit My Answers
+        {alreadySubmitted?"🔄 Update My Answers":"✅ Submit My Answers"}
       </button>
       {!allScored&&<div style={{textAlign:"center",color:"#9BB8B8",fontSize:12,marginTop:6}}>Rate all questions to submit</div>}
+      {alreadySubmitted&&allScored&&<div style={{textAlign:"center",color:T.teal,fontSize:12,marginTop:6}}>You've already submitted — click to update your answers</div>}
     </div>
   );
 }
@@ -793,18 +841,24 @@ export default function App() {
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14,marginBottom:20}}>
             {COLUMNS.map(col=>{
               const c=COL_COLORS[col];
+              const hints={
+                Stop:  {icon:"🛑", desc:"What is slowing us down or causing frustration? What should we stop doing?"},
+                Start: {icon:"🚀", desc:"What should we try that we're not doing yet? New ideas or practices to introduce."},
+                Continue:{icon:"✅", desc:"What is working well and should continue? Things we're doing right."},
+              }[col];
               return(
                 <div key={col} style={card({padding:18})}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                    <div style={{width:9,height:9,borderRadius:"50%",background:c}}/>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                    <span style={{fontSize:18}}>{hints.icon}</span>
                     <h3 style={{margin:0,fontSize:15,fontWeight:800,color:c}}>{col}</h3>
                   </div>
+                  <div style={{fontSize:12,color:T.gray500,marginBottom:12,lineHeight:1.5,borderLeft:`3px solid ${c}40`,paddingLeft:8}}>{hints.desc}</div>
                   <EntryList entries={entries[col]} onAdd={t=>addEntry(col,t)} onRemove={id=>removeEntry(col,id)} color={c}/>
                 </div>
               );
             })}
           </div>
-          <SubmitButton allScored={allScored} onSubmit={submitAnswers}/>
+          <SubmitButton allScored={allScored} onSubmit={submitAnswers} alreadySubmitted={room?.participants?.[myId]?.submitted||false}/>
         </div>
       </div>
     );
@@ -840,6 +894,11 @@ export default function App() {
             </button>
           )}
           {!isHost&&<p style={{color:T.gray300,marginTop:18,fontSize:13}}>The host will reveal results when everyone is done.</p>}
+          {/* Edit answers button — always visible before reveal */}
+          <button onClick={()=>setView("input")}
+            style={{marginTop:12,width:"100%",background:"none",color:T.gray500,border:`1.5px solid ${T.gray100}`,borderRadius:14,padding:"11px 0",fontWeight:600,fontSize:14,cursor:"pointer"}}>
+            ✏️ Edit My Answers
+          </button>
         </div>
       </div>
     );
