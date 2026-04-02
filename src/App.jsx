@@ -632,21 +632,47 @@ function HomeScreen({ onSetup, onJoin }) {
 }
 
 // ─── JoinScreen ───────────────────────────────────────────────────────────────
-function JoinScreen({ onJoin }) {
+function JoinScreen({ onJoin, roomId }) {
   const [name,setName]=useState("");
   const [error,setError]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [isRevealed,setIsRevealed]=useState(null);
   const MAX=15;
+
+  // Check if room is already revealed to show appropriate message
+  useEffect(()=>{
+    if(!roomId) return;
+    fbGet(roomId).then(r=>{ if(r) setIsRevealed(!!r.revealed); });
+  },[roomId]);
+
+  async function handleClick(){
+    setLoading(true);
+    await onJoin(name, setError);
+    setLoading(false);
+  }
+
   return (
     <div style={{minHeight:"100vh",background:"#E8F8F5",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px"}}>
       <div style={{width:"100%",maxWidth:460,background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(13,158,158,.12)",padding:"36px 32px"}}>
         <div style={{textAlign:"center",marginBottom:26}}>
-          <div style={{fontSize:46,marginBottom:8}}>🔄</div>
-          <h1 style={{fontSize:24,fontWeight:900,color:"#1a2e2e",margin:"0 0 4px"}}>You're invited!</h1>
-          <p style={{color:"#7a9a9a",margin:0,fontSize:14}}>Enter your name to join this retrospective.</p>
+          <div style={{fontSize:46,marginBottom:8}}>{isRevealed?"🎉":"🔄"}</div>
+          <h1 style={{fontSize:24,fontWeight:900,color:"#1a2e2e",margin:"0 0 4px"}}>
+            {isRevealed?"View Results":"You're invited!"}
+          </h1>
+          <p style={{color:"#7a9a9a",margin:0,fontSize:14}}>
+            {isRevealed
+              ? "This retrospective has ended. Enter your name to view the results."
+              : "Enter your name to join this retrospective."}
+          </p>
         </div>
+        {isRevealed&&(
+          <div style={{background:"#E6F7F7",border:"1.5px solid #7FDADA",borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:T.tealDark,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
+            👁️ Read-only — the session is complete, results are visible to everyone.
+          </div>
+        )}
         <div style={{position:"relative"}}>
           <input value={name} onChange={e=>{setName(e.target.value.slice(0,MAX));setError("");}}
-            onKeyDown={e=>e.key==="Enter"&&onJoin(name,setError)}
+            onKeyDown={e=>e.key==="Enter"&&handleClick()}
             placeholder="Your name" autoFocus maxLength={MAX}
             style={{width:"100%",padding:"12px 16px",borderRadius:12,border:"1.5px solid #DDE8E8",fontSize:15,color:"#0A2020",outline:"none",boxSizing:"border-box"}}/>
           <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:11,color:name.length>=MAX?"#F07030":T.gray300}}>
@@ -654,9 +680,9 @@ function JoinScreen({ onJoin }) {
           </span>
         </div>
         {error&&<div style={{color:"#F07030",fontSize:13,marginTop:6}}>{error}</div>}
-        <button onClick={()=>onJoin(name,setError)}
-          style={{marginTop:14,width:"100%",background:T.teal,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>
-          Join Retrospective →
+        <button onClick={handleClick} disabled={loading}
+          style={{marginTop:14,width:"100%",background:isRevealed?T.teal:"#F07030",color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer",opacity:loading?.7:1}}>
+          {loading?"Loading…": isRevealed?"👁️ View Results →":"Join Retrospective →"}
         </button>
       </div>
       <div style={{marginTop:18,color:"#7a9a9a",fontSize:13}}>
@@ -748,7 +774,16 @@ export default function App() {
     if(!id){setError("Enter a valid room ID");return;}
     const r=await fbGet(id);
     if(!r){setError("Room not found. Check the ID.");return;}
-    if(r.revealed){setError("This retrospective has already ended.");return;}
+
+    // If already revealed — join as viewer, no write needed
+    if(r.revealed){
+      const pid=uid();
+      setRoomId(id);setMyId(pid);setMyName(name.trim());setIsHost(false);setRoom(r);
+      window.location.hash=`retro-${id}`;
+      listenRoom(id);setView("board");
+      return;
+    }
+
     const pid=uid();
     const initScores={};
     (r.questions||DEFAULT_QUESTIONS).forEach(q=>{ initScores[q.id]=0; });
@@ -836,7 +871,7 @@ export default function App() {
   // ── Views ────────────────────────────────────────────────────────────────────
   if(view==="home")  return <HomeScreen onSetup={goSetup} onJoin={handleJoin}/>;
   if(view==="setup") return <SetupScreen hostName={setupName} onBack={()=>setView("home")} onCreate={handleCreate}/>;
-  if(view==="join")  return <JoinScreen onJoin={handleJoinFromLink}/>;
+  if(view==="join")  return <JoinScreen onJoin={handleJoinFromLink} roomId={roomId}/>;
 
   if(view==="input"){
     const questions=room?.questions||DEFAULT_QUESTIONS;
