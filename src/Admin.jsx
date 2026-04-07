@@ -48,13 +48,29 @@ function RetroDetail({ room, onClose }) {
       <div style={{maxWidth:920,margin:"0 auto",background:T.white,borderRadius:20,boxShadow:"0 20px 60px rgba(0,0,0,.2)",overflow:"hidden"}}>
         <div style={{background:`linear-gradient(135deg,${T.tealDark},${T.teal})`,padding:"20px 28px",display:"flex",alignItems:"center",gap:16}}>
           <div>
-            <div style={{color:T.white,fontWeight:900,fontSize:20}}>Room: {room.id}</div>
+            <div style={{color:T.white,fontWeight:900,fontSize:20}}>
+              {room.sessionName||`Room: ${room.id}`}
+              {room.sessionName&&<span style={{fontSize:13,fontWeight:400,marginLeft:8,opacity:.8}}>#{room.id}</span>}
+            </div>
             <div style={{color:T.tealLight,fontSize:13,marginTop:2}}>
               {fmt(room.createdAt)} · Host: {room.hostName} · {parts.length} participant{parts.length!==1?"s":""}
               {room.teamName&&<span style={{marginLeft:8,background:"rgba(255,255,255,.2)",borderRadius:6,padding:"1px 8px"}}>{room.teamName}</span>}
             </div>
           </div>
           <button onClick={onClose} style={{marginLeft:"auto",background:"rgba(255,255,255,.2)",border:"none",color:T.white,borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:14}}>✕ Close</button>
+        </div>
+        {/* Session link */}
+        <div style={{background:T.tealBg,padding:"10px 28px",display:"flex",alignItems:"center",gap:10,borderBottom:`1px solid ${T.gray100}`}}>
+          <span style={{fontSize:12,color:T.tealDark,fontWeight:600}}>🔗 Session link:</span>
+          <a href={`${window.location.origin}${window.location.pathname}#retro-${room.id}`}
+            target="_blank" rel="noreferrer"
+            style={{fontSize:13,color:T.teal,fontWeight:700,wordBreak:"break-all",textDecoration:"none"}}>
+            {window.location.origin}{window.location.pathname}#retro-{room.id}
+          </a>
+          <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#retro-${room.id}`)}
+            style={{flexShrink:0,background:T.teal,color:T.white,border:"none",borderRadius:8,padding:"5px 12px",cursor:"pointer",fontWeight:700,fontSize:12,marginLeft:"auto"}}>
+            Copy
+          </button>
         </div>
         <div style={{padding:28}}>
           {/* Score averages */}
@@ -200,7 +216,12 @@ function SessionRow({ room, onView, onDelete }) {
       <div style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:room.revealed?"#10B981":T.orange}}/>
       <div style={{flex:1,minWidth:0}}>
         <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-          <span style={{fontWeight:800,fontSize:13,color:T.dark,fontFamily:"monospace"}}>{room.id}</span>
+          {room.sessionName&&(
+            <span style={{fontWeight:800,fontSize:14,color:T.dark}}>{room.sessionName}</span>
+          )}
+          <span style={{fontWeight:room.sessionName?400:800,fontSize:room.sessionName?12:13,color:room.sessionName?T.gray500:T.dark,fontFamily:"monospace"}}>
+            {room.sessionName?"(":""}#{room.id}{room.sessionName?")":""}
+          </span>
           <span style={{background:room.revealed?"#D1FAE5":"#FEF3C7",color:room.revealed?"#065F46":"#92400E",borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:700}}>
             {room.revealed?"Completed":"In Progress"}
           </span>
@@ -265,15 +286,15 @@ export default function AdminPanel({ user, onNewSession }) {
 
   const loadData = useCallback(async ()=>{
     setLoading(true);
-    const [r,t] = await Promise.all([getAllRooms(), getAllTeams()]);
+    const [r,t] = await Promise.all([getAllRooms(user.uid), getAllTeams(user.uid)]);
     setRooms(r); setTeams(t); setLoading(false);
-  },[]);
+  },[user.uid]);
 
   useEffect(()=>{ loadData(); },[loadData]);
 
   // ── Team CRUD
   async function handleSaveTeam(team) {
-    await saveTeam(team);
+    await saveTeam({ ...team, createdBy: user.uid });
     await loadData();
   }
 
