@@ -318,6 +318,7 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
   const [questions,setQuestions]=useState(DEFAULT_QUESTIONS.map(q=>({...q})));
   const [allow3,setAllow3]=useState(false);
   const [teamId,setTeamId]=useState("");
+  const [sessionName,setSessionName]=useState("");
 
   function updateQ(idx,field,val){setQuestions(qs=>qs.map((q,i)=>i===idx?{...q,[field]:val}:q));}
   function addQuestion(){if(questions.length>=5)return;setQuestions(qs=>[...qs,{id:`q${uid()}`,label:"New question",low:"Low",high:"High",scale:5}]);}
@@ -333,6 +334,17 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
         <div style={{background:T.white,borderRadius:20,padding:28,boxShadow:`0 6px 32px ${T.teal}15`}}>
           <h2 style={{margin:"0 0 4px",fontSize:20,fontWeight:900,color:T.tealDark}}>⚙️ Configure Retrospective</h2>
           <p style={{margin:"0 0 24px",color:T.gray500,fontSize:14}}>Hosting as <strong>{hostName}</strong></p>
+
+          {/* Session name — admin only */}
+          {isAdmin&&(
+            <div style={{marginBottom:20}}>
+              <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:8}}>📝 Session Name <span style={{color:T.gray300,fontWeight:400,fontSize:12}}>(optional)</span></div>
+              <input value={sessionName} onChange={e=>setSessionName(e.target.value)}
+                placeholder="e.g. Sprint 42 Retro, Q2 Review…"
+                style={{...inp,fontSize:14,padding:"10px 14px"}}/>
+              <div style={{fontSize:11,color:T.gray500,marginTop:4}}>This name will be shown in the admin panel for easy identification.</div>
+            </div>
+          )}
 
           {/* Team selection — admin only */}
           {isAdmin && teams.length>0&&(
@@ -396,7 +408,7 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
             </label>
           </div>
 
-          <button onClick={()=>onCreate(questions,allow3,teamId,selectedTeam?.name||"")}
+          <button onClick={()=>onCreate(questions,allow3,teamId,selectedTeam?.name||"",sessionName.trim())}
             style={{width:"100%",background:T.orange,color:T.white,border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:16,cursor:"pointer"}}>
             🚀 Create Session & Get Link →
           </button>
@@ -596,8 +608,14 @@ export default function App() {
   // Auth listener
   useEffect(()=>onAuth(u=>setAdminUser(u)),[]);
 
-  // Load teams
-  useEffect(()=>{ getAllTeams().then(setTeams); },[]);
+  // Load teams when admin logs in
+  useEffect(()=>{
+    if(adminUser?.uid) {
+      getAllTeams(adminUser.uid).then(setTeams);
+    } else {
+      setTeams([]);
+    }
+  },[adminUser?.uid]);
 
   const skipHashRef = useRef(false);
 
@@ -632,11 +650,14 @@ export default function App() {
 
   function goSetup(name){ setSetupName(name); setView("setup"); }
 
-  async function handleCreate(questions,allow3,teamId,teamName){
+  async function handleCreate(questions,allow3,teamId,teamName,sessionName){
     const id=uid(),pid=uid();
     const r={
       id,createdAt:nowISO(),hostName:setupName,revealed:false,
-      allow3:!!allow3,questions,teamId:teamId||"",teamName:teamName||"",
+      allow3:!!allow3,questions,
+      teamId:teamId||"",teamName:teamName||"",
+      sessionName:sessionName||"",
+      createdBy: adminUser?.uid||"",
       participants:{},boardEntries:[],actions:{Stop:[],Start:[],Continue:[]},
     };
     r.participants[pid]={name:setupName,scores:{},entries:{Stop:[],Start:[],Continue:[]},submitted:false,joinedAt:nowISO()};
@@ -758,7 +779,9 @@ export default function App() {
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24,background:T.white,borderRadius:16,padding:"12px 20px",boxShadow:`0 3px 14px ${T.teal}12`}}>
             <div style={{width:34,height:34,borderRadius:10,background:`linear-gradient(135deg,${T.teal},${T.tealDark})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>🔄</div>
             <div>
-              <div style={{fontWeight:800,fontSize:15,color:T.tealDark}}>RetroBoard{room?.teamName?` · ${room.teamName}`:""}</div>
+              <div style={{fontWeight:800,fontSize:15,color:T.tealDark}}>
+                {room?.sessionName || "RetroBoard"}{room?.teamName?` · ${room.teamName}`:""}
+              </div>
               <div style={{fontSize:11,color:T.gray300}}>Room: {roomId}</div>
             </div>
             <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
@@ -859,7 +882,9 @@ export default function App() {
         <div style={{background:`linear-gradient(135deg,${T.tealDark},${T.teal})`,padding:"14px 24px",display:"flex",alignItems:"center",gap:14,boxShadow:`0 4px 20px ${T.teal}40`}}>
           <div style={{fontSize:26}}>🔄</div>
           <div>
-            <div style={{color:T.white,fontWeight:900,fontSize:19}}>RetroBoard Results{room.teamName?` · ${room.teamName}`:""}</div>
+            <div style={{color:T.white,fontWeight:900,fontSize:19}}>
+              {room.sessionName||"RetroBoard Results"}{room.teamName?` · ${room.teamName}`:""}
+            </div>
             <div style={{color:T.tealLight,fontSize:12}}>Room {room.id} · {Object.values(room.participants||{}).filter(p=>p.submitted).length} participants</div>
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
