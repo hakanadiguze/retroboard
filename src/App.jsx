@@ -314,7 +314,7 @@ function ScoresSummary({ participants, questions }) {
 }
 
 // ─── SetupScreen ──────────────────────────────────────────────────────────────
-function SetupScreen({ hostName, onBack, onCreate, teams }) {
+function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
   const [questions,setQuestions]=useState(DEFAULT_QUESTIONS.map(q=>({...q})));
   const [allow3,setAllow3]=useState(false);
   const [teamId,setTeamId]=useState("");
@@ -334,8 +334,8 @@ function SetupScreen({ hostName, onBack, onCreate, teams }) {
           <h2 style={{margin:"0 0 4px",fontSize:20,fontWeight:900,color:T.tealDark}}>⚙️ Configure Retrospective</h2>
           <p style={{margin:"0 0 24px",color:T.gray500,fontSize:14}}>Hosting as <strong>{hostName}</strong></p>
 
-          {/* Team selection */}
-          {teams.length>0&&(
+          {/* Team selection — admin only */}
+          {isAdmin && teams.length>0&&(
             <div style={{marginBottom:20}}>
               <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:10}}>👥 Team (optional)</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -505,12 +505,12 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser }) {
             <button onClick={()=>window.location.hash="admin"}
               style={{background:T.tealBg,color:T.tealDark,border:`1.5px solid ${T.teal}40`,borderRadius:12,padding:"10px 20px",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:8,margin:"0 auto"}}>
               <img src={adminUser.photoURL} alt="" style={{width:22,height:22,borderRadius:"50%"}}/>
-              Admin Paneli →
+              Admin Panel →
             </button>
           ) : (
             <button onClick={onAdminLogin}
               style={{background:"none",color:T.gray500,border:`1.5px solid ${T.gray100}`,borderRadius:12,padding:"10px 20px",fontWeight:600,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:8,margin:"0 auto"}}>
-              <span style={{fontSize:16}}>🔐</span> Admin Girişi (Google)
+              <span style={{fontSize:16}}>🔐</span> Admin Login (Google)
             </button>
           )}
         </div>
@@ -727,15 +727,15 @@ export default function App() {
     ? <AdminPanel user={adminUser}/>
     : <div style={{...base,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
         <div style={{fontSize:48}}>🔐</div>
-        <div style={{fontWeight:700,color:T.tealDark,fontSize:18}}>Admin girişi gerekli</div>
+        <div style={{fontWeight:700,color:T.tealDark,fontSize:18}}>Admin login required</div>
         <button onClick={handleAdminLogin} style={{...btn(T.teal),display:"flex",alignItems:"center",gap:10,fontSize:15,padding:"12px 28px"}}>
-          <span>G</span> Google ile Giriş Yap
+          <span style={{fontWeight:900}}>G</span> Sign in with Google
         </button>
-        <button onClick={()=>window.location.hash=""} style={{...btn("none",T.gray500,{border:`1px solid ${T.gray100}`})}}>← Ana Sayfa</button>
+        <button onClick={()=>window.location.hash=""} style={{...btn("none",T.gray500,{border:`1px solid ${T.gray100}`})}}>← Home</button>
       </div>;
 
   if(view==="home")  return <HomeScreen onSetup={goSetup} onJoin={handleJoin} onAdminLogin={handleAdminLogin} adminUser={adminUser}/>;
-  if(view==="setup") return <SetupScreen hostName={setupName} onBack={()=>setView("home")} onCreate={handleCreate} teams={teams}/>;
+  if(view==="setup") return <SetupScreen hostName={setupName} onBack={()=>setView("home")} onCreate={handleCreate} teams={teams} isAdmin={!!adminUser}/>;
   if(view==="join")  return <JoinScreen onJoin={handleJoinFromLink} roomId={roomId}/>;
 
   if(view==="input"){
