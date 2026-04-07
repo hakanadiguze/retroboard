@@ -407,8 +407,8 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
 }
 
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
-function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser }) {
-  const [hostName,setHostName]=useState("");
+function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName="" }) {
+  const [hostName,setHostName]=useState(prefilledName.slice(0,15));
   const [joinId,setJoinId]=useState("");
   const [joinName,setJoinName]=useState("");
   const [joinOpen,setJoinOpen]=useState(false);
@@ -724,7 +724,7 @@ export default function App() {
 
   // ── Admin view
   if(view==="admin") return adminUser
-    ? <AdminPanel user={adminUser}/>
+    ? <AdminPanel user={adminUser} onNewSession={()=>{ setView("home"); }}/>
     : <div style={{...base,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
         <div style={{fontSize:48}}>🔐</div>
         <div style={{fontWeight:700,color:T.tealDark,fontSize:18}}>Admin login required</div>
@@ -734,7 +734,7 @@ export default function App() {
         <button onClick={()=>window.location.hash=""} style={{...btn("none",T.gray500,{border:`1px solid ${T.gray100}`})}}>← Home</button>
       </div>;
 
-  if(view==="home")  return <HomeScreen onSetup={goSetup} onJoin={handleJoin} onAdminLogin={handleAdminLogin} adminUser={adminUser}/>;
+  if(view==="home")  return <HomeScreen onSetup={goSetup} onJoin={handleJoin} onAdminLogin={handleAdminLogin} adminUser={adminUser} prefilledName={adminUser?.displayName?.split(" ")[0]||""}/>;
   if(view==="setup") return <SetupScreen hostName={setupName} onBack={()=>setView("home")} onCreate={handleCreate} teams={teams} isAdmin={!!adminUser}/>;
   if(view==="join")  return <JoinScreen onJoin={handleJoinFromLink} roomId={roomId}/>;
 

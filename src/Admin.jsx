@@ -193,7 +193,7 @@ function TeamManager({ teams, onSave, onClose }) {
 }
 
 // ─── AdminPanel ───────────────────────────────────────────────────────────────
-export default function AdminPanel({ user }) {
+export default function AdminPanel({ user, onNewSession }) {
   const [rooms,        setRooms]        = useState([]);
   const [teams,        setTeams]        = useState([]);
   const [loading,      setLoading]      = useState(true);
@@ -202,15 +202,20 @@ export default function AdminPanel({ user }) {
   const [filterTeam,   setFilterTeam]   = useState("all");
   const [search,       setSearch]       = useState("");
 
-  useEffect(()=>{
+  function loadData() {
+    setLoading(true);
     Promise.all([getAllRooms(),getAllTeams()]).then(([r,t])=>{
       setRooms(r); setTeams(t); setLoading(false);
     });
-  },[]);
+  }
+
+  useEffect(()=>{ loadData(); },[]);
 
   async function handleSaveTeam(team) {
     await saveTeam(team);
-    setTeams(await getAllTeams());
+    // Reload teams immediately so list is fresh
+    const t = await getAllTeams();
+    setTeams(t);
   }
 
   const filtered = rooms.filter(r=>{
@@ -237,9 +242,13 @@ export default function AdminPanel({ user }) {
           <div style={{color:T.tealLight,fontSize:12}}>{user.displayName} · {user.email}</div>
         </div>
         <div style={{marginLeft:"auto",display:"flex",gap:10,alignItems:"center"}}>
-          <button onClick={()=>window.location.hash=""}
+          <button onClick={onNewSession}
+            style={{background:T.orange,color:T.white,border:"none",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13}}>
+            ⚡ New Session
+          </button>
+          <button onClick={loadData}
             style={{background:"rgba(255,255,255,.15)",color:T.white,border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>
-            🏠 Home
+            🔄 Refresh
           </button>
           <button onClick={()=>setShowTeams(true)}
             style={{background:"rgba(255,255,255,.15)",color:T.white,border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>
