@@ -599,13 +599,16 @@ export default function App() {
   // Load teams
   useEffect(()=>{ getAllTeams().then(setTeams); },[]);
 
+  const skipHashRef = useRef(false);
+
   // URL hash routing
   useEffect(()=>{
     function handleHash(){
+      if(skipHashRef.current){ skipHashRef.current=false; return; }
       const hash=window.location.hash.replace("#","");
       if(hash==="admin"){ setView("admin"); return; }
       if(hash.startsWith("retro-")){ setRoomId(hash.replace("retro-","")); setView("join"); return; }
-      setView("home");
+      if(hash===""){ setView("home"); return; }
     }
     handleHash();
     window.addEventListener("hashchange",handleHash);
@@ -640,6 +643,7 @@ export default function App() {
     await fbSet(id,r);
     const init={};questions.forEach(q=>{init[q.id]=0;});
     setRoomId(id);setMyId(pid);setMyName(setupName);setIsHost(true);setRoom(r);setScores(init);
+    skipHashRef.current=true;
     window.location.hash=`retro-${id}`;
     listenRoom(id);setView("input");
   }
@@ -653,6 +657,7 @@ export default function App() {
     if(r.revealed){
       const pid=uid();
       setRoomId(id);setMyId(pid);setMyName(name.trim());setIsHost(false);setRoom(r);
+      skipHashRef.current=true;
       window.location.hash=`retro-${id}`;listenRoom(id);setView("board");return;
     }
     const pid=uid();
@@ -660,6 +665,7 @@ export default function App() {
     const updated={...r,participants:{...(r.participants||{}),[pid]:{name:name.trim(),scores:{},entries:{Stop:[],Start:[],Continue:[]},submitted:false,joinedAt:nowISO()}}};
     await fbSet(id,updated);
     setRoomId(id);setMyId(pid);setMyName(name.trim());setIsHost(false);setRoom(updated);setScores(init);
+    skipHashRef.current=true;
     window.location.hash=`retro-${id}`;listenRoom(id);setView("input");
   }
 
@@ -724,7 +730,11 @@ export default function App() {
 
   // ── Admin view
   if(view==="admin") return adminUser
-    ? <AdminPanel user={adminUser} onNewSession={()=>{ setView("home"); }}/>
+    ? <AdminPanel user={adminUser} onNewSession={()=>{
+        skipHashRef.current=true;
+        window.location.hash="";
+        setView("home");
+      }}/>
     : <div style={{...base,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
         <div style={{fontSize:48}}>🔐</div>
         <div style={{fontWeight:700,color:T.tealDark,fontSize:18}}>Admin login required</div>
