@@ -425,18 +425,19 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
         {revealed&&<span style={{fontSize:11,color:T.gray500,marginLeft:"auto"}}>Double-click a card to add an action</span>}
       </div>
 
-      {/* Board — scrollable when cards exceed view */}
-      <div style={{overflowX:"auto",overflowY:"auto",borderRadius:16,border:`1.5px solid ${T.gray100}`,width:"100%"}}>
+      {/* Board — fills container, scrolls only if cards overflow */}
+      <div style={{overflowX:"auto",overflowY:"visible",borderRadius:16,border:`1.5px solid ${T.gray100}`}}>
       <div ref={boardRef} className="board-bg"
         onDoubleClick={handleBoardDblClick}
         onDragOver={e=>e.preventDefault()}
         onDrop={handleDrop}
         style={{
           position:"relative",
-          width:Math.max(BOARD_W, 500),
+          minWidth:"100%",
+          width:BOARD_W > 500 ? BOARD_W : "100%",
           height:BOARD_H,
           background:"repeating-linear-gradient(0deg,transparent,transparent 24px,#e0e8e840 24px,#e0e8e840 25px),repeating-linear-gradient(90deg,transparent,transparent 24px,#e0e8e840 24px,#e0e8e840 25px)",
-          backgroundColor:"#f0f6f6",flexShrink:0,
+          backgroundColor:"#f0f6f6",
         }}>
         {sorted.map((card,i)=>(
           <PostItCard key={card.id} card={{...card,z:i+1}} myId={myId}
@@ -847,20 +848,35 @@ export default function App() {
   const btn=(bg,color=T.white,ex={})=>({background:bg,color,border:"none",borderRadius:12,padding:"10px 20px",fontWeight:700,fontSize:14,cursor:"pointer",...ex});
 
   function Topbar(){
+    const link=`${location.origin}${location.pathname}#retro-${roomId}`;
     return (
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,background:T.white,borderRadius:16,padding:"12px 20px",boxShadow:`0 3px 14px ${T.teal}12`}}>
-        <div style={{width:34,height:34,borderRadius:10,background:`linear-gradient(135deg,${T.teal},${T.tealDark})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>🔄</div>
-        <div>
-          <div style={{fontWeight:800,fontSize:15,color:T.tealDark,display:"flex",alignItems:"center",gap:6}}>
-            {room?.sessionName||"RetroBoard"}
-            <span style={{background:T.tealBg,color:T.tealDark,borderRadius:6,padding:"1px 6px",fontSize:10,fontWeight:800}}>{VERSION}</span>
-            {room?.teamName&&<span style={{fontSize:12,color:T.gray500,fontWeight:600}}>· {room.teamName}</span>}
+      <div style={{marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,background:T.white,borderRadius:"16px 16px 0 0",padding:"12px 20px",boxShadow:`0 2px 8px ${T.teal}10`}}>
+          <div style={{width:34,height:34,borderRadius:10,background:`linear-gradient(135deg,${T.teal},${T.tealDark})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>🔄</div>
+          <div>
+            <div style={{fontWeight:800,fontSize:15,color:T.tealDark,display:"flex",alignItems:"center",gap:6}}>
+              {room?.sessionName||"RetroBoard"}
+              <span style={{background:T.tealBg,color:T.tealDark,borderRadius:6,padding:"1px 6px",fontSize:10,fontWeight:800}}>{VERSION}</span>
+              {room?.teamName&&<span style={{fontSize:12,color:T.gray500,fontWeight:600}}>· {room.teamName}</span>}
+            </div>
+            <div style={{fontSize:11,color:T.gray300}}>Room: {roomId}</div>
           </div>
-          <div style={{fontSize:11,color:T.gray300}}>Room: {roomId}</div>
+          <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+            {isHost&&<button onClick={copyLink} style={{...btn(T.gray100,T.gray500,{fontSize:12,padding:"7px 12px"})}}>{copied?"✅ Copied!":"🔗 Copy Link"}</button>}
+            <div style={{background:T.tealBg,borderRadius:20,padding:"5px 12px",fontSize:12,fontWeight:700,color:T.tealDark}}>👤 {myName}</div>
+          </div>
         </div>
-        <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
-          {isHost&&<button onClick={copyLink} style={{...btn(T.gray100,T.gray500,{fontSize:12,padding:"7px 12px"})}}>{copied?"✅ Copied!":"🔗 Copy Link"}</button>}
-          <div style={{background:T.tealBg,borderRadius:20,padding:"5px 12px",fontSize:12,fontWeight:700,color:T.tealDark}}>👤 {myName}</div>
+        {/* Session link bar — always visible */}
+        <div style={{background:T.tealBg,borderRadius:"0 0 16px 16px",padding:"8px 20px",display:"flex",alignItems:"center",gap:10,borderTop:`1px solid ${T.gray100}`}}>
+          <span style={{fontSize:11,color:T.tealDark,fontWeight:600,flexShrink:0}}>🔗 Link:</span>
+          <a href={link} target="_blank" rel="noreferrer"
+            style={{fontSize:12,color:T.teal,fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textDecoration:"none"}}>
+            {link}
+          </a>
+          <button onClick={copyLink}
+            style={{flexShrink:0,background:T.teal,color:"#fff",border:"none",borderRadius:8,padding:"4px 12px",cursor:"pointer",fontWeight:700,fontSize:11}}>
+            {copied?"✅":"Copy"}
+          </button>
         </div>
       </div>
     );

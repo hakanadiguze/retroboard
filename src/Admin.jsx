@@ -9,8 +9,14 @@ const T = {
   gray500:"#5A7878", gray700:"#2D4A4A", dark:"#0A2020",
 };
 const SCORE_COLORS = ["#0D9E9E","#F07030","#8B5CF6","#EC4899","#10B981"];
-const COL_COLORS   = { Stop:"#FF6B6B", Start:"#0D9E9E", Continue:"#F07030" };
+const COL_COLORS   = { Stop:"#FF6B6B", Start:"#34D399", Continue:"#60A5FA" };
+const COL_BG       = { Stop:"#FFF5F5", Start:"#F0FFF8", Continue:"#EFF6FF" };
 const COLUMNS      = ["Stop","Start","Continue"];
+const REACTIONS    = ["👍","👎","❤️","🔥","💡"];
+
+function totalReactions(card) {
+  return Object.values(card.reactions||{}).reduce((s,v)=>s+Object.keys(v||{}).length,0);
+}
 
 function fmt(iso) {
   if(!iso) return "—";
@@ -123,38 +129,57 @@ function RetroDetail({ room, onClose }) {
               )}
             </>
           )}
-          {/* Board */}
-          <h3 style={{margin:"0 0 12px",color:T.tealDark,fontSize:15,fontWeight:800}}>🗂 Board</h3>
-          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-            {COLUMNS.map(col=>{
-              const c=COL_COLORS[col];
-              const cards  =(room.boardEntries||[]).filter(e=>e.column===col);
-              const actions=(room.actions?.[col])||[];
-              return(
-                <div key={col} style={{flex:"1 1 220px",borderRadius:14,overflow:"hidden",boxShadow:`0 2px 12px ${c}20`}}>
-                  <div style={{background:c,padding:"10px 14px",display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{color:T.white,fontWeight:800,fontSize:14}}>{col}</span>
-                    <span style={{marginLeft:"auto",background:"rgba(255,255,255,.25)",color:T.white,borderRadius:12,padding:"1px 8px",fontSize:12,fontWeight:700}}>{cards.length}</span>
-                  </div>
-                  <div style={{background:T.offWhite,padding:10,minHeight:60}}>
-                    {cards.map(card=>(
-                      <div key={card.id} style={{background:T.white,borderRadius:8,padding:"7px 10px",marginBottom:6,border:`1px solid ${c}20`,fontSize:12}}>
-                        <span style={{background:c,color:T.white,borderRadius:6,padding:"1px 6px",fontSize:10,fontWeight:700,marginRight:6}}>{card.participantName}</span>
-                        {card.text}
-                      </div>
-                    ))}
-                    {cards.length===0&&<div style={{textAlign:"center",color:T.gray300,fontSize:11,padding:"12px 0"}}>No cards</div>}
-                  </div>
-                  {actions.length>0&&(
-                    <div style={{background:`${c}10`,padding:"8px 10px",borderTop:`1px solid ${c}25`}}>
-                      <div style={{fontSize:10,fontWeight:800,color:c,marginBottom:4}}>⚡ ACTIONS</div>
-                      {actions.map(a=><div key={a.id} style={{fontSize:11,color:T.gray700,marginBottom:3}}>• {a.text}</div>)}
-                    </div>
-                  )}
+          {/* Board — post-it style list grouped by column */}
+          <h3 style={{margin:"0 0 12px",color:T.tealDark,fontSize:15,fontWeight:800}}>🗒️ Board</h3>
+          {COLUMNS.map(col=>{
+            const c=COL_COLORS[col];
+            const bg=COL_BG[col];
+            const colCards=(room.boardEntries||[]).filter(e=>e.column===col)
+              .sort((a,b)=>totalReactions(b)-totalReactions(a));
+            if(!colCards.length) return null;
+            return(
+              <div key={col} style={{marginBottom:20}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <div style={{width:12,height:12,borderRadius:3,background:c}}/>
+                  <span style={{fontWeight:800,fontSize:14,color:c}}>{col}</span>
+                  <span style={{background:`${c}20`,color:c,borderRadius:8,padding:"1px 8px",fontSize:11,fontWeight:700}}>{colCards.length}</span>
                 </div>
-              );
-            })}
-          </div>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                  {colCards.map(card=>{
+                    const rx=totalReactions(card);
+                    const rxText=REACTIONS.filter(r=>card.reactions?.[r]&&Object.keys(card.reactions[r]).length>0)
+                      .map(r=>`${r}${Object.keys(card.reactions[r]).length}`).join(" ");
+                    return(
+                      <div key={card.id} style={{width:160,background:bg,borderRadius:4,
+                        boxShadow:`2px 2px 8px rgba(0,0,0,.12),inset 0 -3px 0 ${c}50`,
+                        borderTop:`4px solid ${c}`,padding:"10px 10px 8px",position:"relative",flexShrink:0}}>
+                        {rx>0&&(
+                          <div style={{position:"absolute",top:-8,right:-8,background:c,color:"#fff",borderRadius:"50%",
+                            width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800}}>
+                            {rx}
+                          </div>
+                        )}
+                        <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:5}}>
+                          <span style={{background:c,color:"#fff",borderRadius:5,padding:"1px 6px",fontSize:8,fontWeight:800}}>{col}</span>
+                          <span style={{fontSize:9,color:T.gray500,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{card.participantName}</span>
+                        </div>
+                        <div style={{fontSize:12,color:"#333",lineHeight:1.4,marginBottom:rxText?5:0,wordBreak:"break-word"}}>{card.text}</div>
+                        {rxText&&<div style={{fontSize:10,color:T.gray500,marginBottom:4}}>{rxText}</div>}
+                        {(card.actions||[]).length>0&&(
+                          <div style={{borderTop:`1px solid ${c}30`,paddingTop:4,marginTop:4}}>
+                            <div style={{fontSize:9,fontWeight:800,color:c,marginBottom:2}}>ACTIONS</div>
+                            {(card.actions||[]).map((a,i)=>(
+                              <div key={i} style={{fontSize:10,color:T.gray700}}>⚡ {a}</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
