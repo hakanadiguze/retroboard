@@ -38,70 +38,163 @@ function totalReactions(card) {
 async function exportPDF(room) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:"mm", format:"a4" });
-  const W=210,M=14,cW=W-M*2; let y=M;
+  const W=210, M=12, cW=W-M*2; let y=M;
   const hx=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
   const sf=c=>doc.setFillColor(...hx(c));
   const sc=c=>doc.setTextColor(...hx(c));
+  const sd=c=>doc.setDrawColor(...hx(c));
   const qColors=["#0D9E9E","#F07030","#8B5CF6","#EC4899","#10B981"];
 
+  // ── Header ────────────────────────────────────────────────────────────────────
   sf(T.teal); doc.rect(0,0,W,28,"F");
   sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(20);
   doc.text("Retrospective Results",M,13);
-  doc.setFontSize(9); doc.setFont("helvetica","normal");
-  doc.text(`RetroBoard ${VERSION} · ${new Date().toLocaleString()} · Room: ${room.id}${room.teamName?" · "+room.teamName:""}`,M,22);
+  doc.setFontSize(8); doc.setFont("helvetica","normal");
+  doc.text(`RetroBoard ${VERSION} · ${new Date().toLocaleString()} · Room: ${room.id}${room.sessionName?" · "+room.sessionName:""}${room.teamName?" · "+room.teamName:""}`,M,22);
   y=36;
 
+  // ── Scores table ──────────────────────────────────────────────────────────────
   const parts=Object.values(room.participants||{}).filter(p=>p.submitted);
   const questions=room.questions||DEFAULT_QUESTIONS;
   const avg=qid=>{ const v=parts.map(p=>p.scores?.[qid]).filter(Boolean); return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"-"; };
 
-  sc(T.tealDark); doc.setFont("helvetica","bold"); doc.setFontSize(13);
-  doc.text("Team Scores",M,y); y+=7;
+  sc(T.tealDark); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+  doc.text("Team Scores",M,y); y+=6;
 
-  const qColW=58,dataColW=Math.min(22,Math.floor((cW-qColW)/(parts.length+1)));
-  const tableW=qColW+(parts.length+1)*dataColW,rowH=9;
+  const qColW=55, dataColW=Math.min(20,Math.floor((cW-qColW)/(parts.length+1)));
+  const tableW=qColW+(parts.length+1)*dataColW, rowH=8;
   sf(T.teal); doc.rect(M,y,tableW,rowH,"F");
-  sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
-  doc.text("Question",M+2,y+6);
-  parts.forEach((p,i)=>{ const x=M+qColW+i*dataColW; doc.text((p.name||"").slice(0,8),x+dataColW/2,y+6,{align:"center"}); });
+  sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(7);
+  doc.text("Question",M+2,y+5.5);
+  parts.forEach((p,i)=>{ doc.text((p.name||"").slice(0,9),M+qColW+i*dataColW+dataColW/2,y+5.5,{align:"center"}); });
   const avgX=M+qColW+parts.length*dataColW;
   sf("#076F6F"); doc.rect(avgX,y,dataColW,rowH,"F");
-  sc(T.white); doc.text("Avg",avgX+dataColW/2,y+6,{align:"center"}); y+=rowH;
+  sc(T.white); doc.text("Avg",avgX+dataColW/2,y+5.5,{align:"center"}); y+=rowH;
 
   questions.forEach((q,qi)=>{
     const c=qColors[qi%qColors.length];
     qi%2===0?sf(T.offWhite):sf(T.white); doc.rect(M,y,tableW,rowH,"F");
     sf(c); doc.rect(M,y,3,rowH,"F");
-    sc(T.dark); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
-    doc.text(q.label.slice(0,27)+(q.label.length>27?"…":""),M+5,y+6);
+    sc(T.dark); doc.setFont("helvetica","bold"); doc.setFontSize(7);
+    doc.text(q.label.slice(0,30)+(q.label.length>30?"…":""),M+5,y+5.5);
     doc.setFont("helvetica","normal");
-    parts.forEach((p,i)=>{ sc(T.dark); doc.text(String(p.scores?.[q.id]??"-"),M+qColW+i*dataColW+dataColW/2,y+6,{align:"center"}); });
+    parts.forEach((p,i)=>{ sc(T.dark); doc.text(String(p.scores?.[q.id]??"-"),M+qColW+i*dataColW+dataColW/2,y+5.5,{align:"center"}); });
     sf(c); doc.rect(avgX,y,dataColW,rowH,"F");
-    sc(T.white); doc.setFont("helvetica","bold"); doc.text(avg(q.id),avgX+dataColW/2,y+6,{align:"center"}); y+=rowH;
+    sc(T.white); doc.setFont("helvetica","bold"); doc.text(avg(q.id),avgX+dataColW/2,y+5.5,{align:"center"});
+    y+=rowH;
   });
-  y+=10;
+  y+=12;
+
+  // ── Post-it Board ─────────────────────────────────────────────────────────────
+  sc(T.tealDark); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+  doc.text("Team Board",M,y); y+=8;
+
+  // Post-it card dimensions
+  const CARD_W=54, CARD_H_BASE=28, COLS_PER_ROW=3, GAP=5;
+  const colColors={ Stop:"#FF6B6B", Start:"#34D399", Continue:"#60A5FA" };
+  const colBgHex={ Stop:"#FFF5F5", Start:"#F0FFF8", Continue:"#EFF6FF" };
 
   for(const col of COLUMNS){
-    const colCards=[...(room.boardEntries||[])].filter(c=>c.column===col).sort((a,b)=>totalReactions(b)-totalReactions(a));
+    const colCards=[...(room.boardEntries||[])].filter(c=>c.column===col)
+      .sort((a,b)=>totalReactions(b)-totalReactions(a));
     if(!colCards.length) continue;
+
+    // Column header bar
     if(y>260){doc.addPage();y=M;}
-    const cc=COL_COLORS[col];
-    sf(cc); doc.rect(M,y,cW,8,"F");
-    sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(11);
-    doc.text(col,M+3,y+6); y+=10;
-    colCards.forEach(card=>{
-      if(y>270){doc.addPage();y=M;}
-      sc(T.gray500); doc.setFont("helvetica","bold"); doc.setFontSize(8);
-      doc.text((card.participantName||"").slice(0,15)+":",M+3,y+4);
-      sc(T.dark); doc.setFont("helvetica","normal");
-      const lines=doc.splitTextToSize(card.text||"",cW-42);
-      doc.text(lines,M+40,y+4);
-      const rx=totalReactions(card);
-      if(rx>0){ sc(T.gray500); doc.text(`[${rx}]`,M+cW-10,y+4); }
-      y+=Math.max(lines.length*5,5)+2;
+    const cc=colColors[col];
+    sf(cc); doc.rect(M,y,cW,7,"F");
+    sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(10);
+    doc.text(`${col}  (${colCards.length} cards)`,M+3,y+5); y+=10;
+
+    // Cards in rows of COLS_PER_ROW
+    let col_i=0;
+    let rowStartY=y;
+
+    colCards.forEach((card,idx)=>{
+      const cx=M+(col_i*(CARD_W+GAP));
+
+      // Estimate card height based on content
+      doc.setFontSize(8);
+      const textLines=doc.splitTextToSize(card.text||"",CARD_W-6);
+      const actionLines=(card.actions||[]).flatMap(a=>doc.splitTextToSize("⚡ "+a,CARD_W-8));
+      const rxText=totalReactions(card)>0
+        ? REACTIONS.filter(r=>card.reactions?.[r]&&Object.keys(card.reactions[r]).length>0)
+            .map(r=>`${r}${Object.keys(card.reactions[r]).length}`).join(" ")
+        : "";
+      const CARD_H = CARD_H_BASE
+        + Math.max(0,(textLines.length-2)*4)
+        + (actionLines.length>0 ? 4+actionLines.length*4 : 0)
+        + (rxText ? 5 : 0);
+
+      if(rowStartY+CARD_H>275){
+        doc.addPage(); y=M; rowStartY=M; col_i=0;
+      }
+
+      const cy=rowStartY;
+
+      // Card shadow (light gray rect slightly offset)
+      sf("#e0e0e0"); sd("#e0e0e0");
+      doc.rect(cx+1.5,cy+1.5,CARD_W,CARD_H,"F");
+
+      // Card background
+      sf(colBgHex[col]); sd(cc);
+      doc.setLineWidth(0.3);
+      doc.rect(cx,cy,CARD_W,CARD_H,"FD");
+
+      // Top color strip
+      sf(cc); doc.rect(cx,cy,CARD_W,3,"F");
+
+      // Column badge
+      sf(cc); doc.roundedRect(cx+2,cy+4,14,4,1,1,"F");
+      sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(5);
+      doc.text(col,cx+9,cy+7,{align:"center"});
+
+      // Author
+      sc(T.gray500); doc.setFont("helvetica","bold"); doc.setFontSize(6);
+      doc.text((card.participantName||"").slice(0,12),cx+CARD_W-2,cy+7,{align:"right"});
+
+      // Card text
+      sc("#333333"); doc.setFont("helvetica","normal"); doc.setFontSize(8);
+      doc.text(textLines,cx+3,cy+13);
+      let innerY=cy+13+textLines.length*4;
+
+      // Reactions
+      if(rxText){
+        sc(T.gray500); doc.setFont("helvetica","normal"); doc.setFontSize(7);
+        doc.text(rxText,cx+3,innerY+2);
+        innerY+=5;
+      }
+
+      // Actions
+      if(actionLines.length>0){
+        // Divider
+        sd(cc); doc.setLineWidth(0.2);
+        doc.line(cx+2,innerY+1,cx+CARD_W-2,innerY+1);
+        sc(cc); doc.setFont("helvetica","bold"); doc.setFontSize(6);
+        doc.text("ACTIONS",cx+3,innerY+4);
+        sc(T.dark); doc.setFont("helvetica","normal"); doc.setFontSize(7);
+        actionLines.forEach((line,li)=>{
+          doc.text(line,cx+3,innerY+8+li*4);
+        });
+      }
+
+      col_i++;
+      if(col_i>=COLS_PER_ROW){
+        col_i=0;
+        // Find max height in this row
+        rowStartY+=CARD_H+GAP;
+        y=rowStartY;
+      }
     });
-    y+=4;
+
+    // If last row wasn't full
+    if(col_i>0){
+      rowStartY+=CARD_H_BASE+GAP+16;
+      y=rowStartY;
+    }
+    y+=6;
   }
+
   doc.save(`retro-${VERSION}-${room.id}-${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
@@ -247,10 +340,22 @@ function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed })
         </div>
       )}
 
+      {/* Action hint — revealed only */}
+      {revealed&&!(card.actions||[]).length&&!showAction&&(
+        <div style={{fontSize:9,color:T.gray300,marginTop:4,textAlign:"center",letterSpacing:".2px"}}>
+          ✦ double-click to add action
+        </div>
+      )}
+
       {rxTotal>0&&(
         <div style={{position:"absolute",top:-8,right:-8,background:c,color:"#fff",borderRadius:"50%",width:20,height:20,
           display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,boxShadow:"0 2px 4px rgba(0,0,0,.2)"}}>
           {rxTotal}
+        </div>
+      )}
+      {revealed&&(
+        <div style={{position:"absolute",bottom:4,right:6,fontSize:9,color:`${c}90`,fontWeight:700,pointerEvents:"none"}}>
+          ⚡ dbl-click
         </div>
       )}
     </div>
@@ -267,7 +372,8 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
   const [newCol,  setNewCol]  = useState("Continue");
 
   const sorted = [...cards].sort((a,b)=>totalReactions(a)-totalReactions(b));
-  const BOARD_H = Math.max(600, ...cards.map(c=>(c.y||0)+240), 600);
+  const BOARD_W = Math.max(800, ...cards.map(c=>(c.x||0)+200));
+  const BOARD_H = Math.max(600, ...cards.map(c=>(c.y||0)+260));
 
   function openModal(x,y){ setModal({x,y}); setNewText(""); setNewCol("Continue"); }
 
@@ -325,15 +431,16 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
         {revealed&&<span style={{fontSize:11,color:T.gray500,marginLeft:"auto"}}>Double-click a card to add an action</span>}
       </div>
 
-      {/* Board */}
+      {/* Board — scrollable both axes */}
+      <div style={{overflowX:"auto",overflowY:"auto",borderRadius:16,border:`1.5px solid ${T.gray100}`}}>
       <div ref={boardRef} className="board-bg"
         onDoubleClick={handleBoardDblClick}
         onDragOver={e=>e.preventDefault()}
         onDrop={handleDrop}
         style={{
-          position:"relative",width:"100%",height:BOARD_H,
+          position:"relative",width:BOARD_W,height:BOARD_H,
           background:"repeating-linear-gradient(0deg,transparent,transparent 24px,#e0e8e840 24px,#e0e8e840 25px),repeating-linear-gradient(90deg,transparent,transparent 24px,#e0e8e840 24px,#e0e8e840 25px)",
-          backgroundColor:"#f0f6f6",borderRadius:16,border:`1.5px solid ${T.gray100}`,overflow:"hidden",
+          backgroundColor:"#f0f6f6",flexShrink:0,
         }}>
         {sorted.map((card,i)=>(
           <PostItCard key={card.id} card={{...card,z:i+1}} myId={myId}
@@ -372,6 +479,7 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
           </div>
         )}
       </div>
+      </div>{/* end scroll wrapper */}
     </div>
   );
 }
@@ -865,12 +973,11 @@ export default function App() {
           </div>
           {isHost&&(
             <button onClick={revealResults}
-              style={{width:"100%",background:allDone?T.orange:T.gray300,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:15,cursor:allDone?"pointer":"default",opacity:allDone?1:.7,marginBottom:10}}
-              disabled={!allDone}>
-              {allDone?"🎉 Reveal Results!":`Waiting for ${total-done} more score${total-done!==1?"s":""}…`}
+              style={{width:"100%",background:T.orange,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:10}}>
+              🎉 Reveal Results
             </button>
           )}
-          {!isHost&&<p style={{color:T.gray300,textAlign:"center",fontSize:13}}>The host will reveal scores when everyone is done.</p>}
+          {!isHost&&<p style={{color:T.gray300,textAlign:"center",fontSize:13}}>The host will reveal scores when ready.</p>}
           <button onClick={()=>setView("input")} style={{width:"100%",background:"none",color:T.gray500,border:`1.5px solid ${T.gray100}`,borderRadius:14,padding:"11px 0",fontWeight:600,fontSize:14,cursor:"pointer"}}>✏️ Edit My Scores</button>
         </div>
       </div>
