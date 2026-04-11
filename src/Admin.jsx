@@ -205,20 +205,17 @@ function TeamModal({ team, onSave, onClose }) {
 }
 
 // ─── SessionRow ───────────────────────────────────────────────────────────────
-function SessionRow({ room, onView, onDelete }) {
+function SessionRow({ room, onView, onDelete, onRejoin }) {
   const parts = Object.values(room.participants||{}).filter(p=>p.submitted);
   return (
     <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:T.white,borderRadius:12,marginBottom:6,
-      border:"1.5px solid transparent",transition:"border .15s",cursor:"pointer"}}
+      border:"1.5px solid transparent",transition:"border .15s"}}
       onMouseEnter={e=>e.currentTarget.style.borderColor=`${T.teal}40`}
-      onMouseLeave={e=>e.currentTarget.style.borderColor="transparent"}
-      onClick={()=>onView(room)}>
+      onMouseLeave={e=>e.currentTarget.style.borderColor="transparent"}>
       <div style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:room.revealed?"#10B981":T.orange}}/>
-      <div style={{flex:1,minWidth:0}}>
+      <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>onView(room)}>
         <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-          {room.sessionName&&(
-            <span style={{fontWeight:800,fontSize:14,color:T.dark}}>{room.sessionName}</span>
-          )}
+          {room.sessionName&&<span style={{fontWeight:800,fontSize:14,color:T.dark}}>{room.sessionName}</span>}
           <span style={{fontWeight:room.sessionName?400:800,fontSize:room.sessionName?12:13,color:room.sessionName?T.gray500:T.dark,fontFamily:"monospace"}}>
             {room.sessionName?"(":""}#{room.id}{room.sessionName?")":""}
           </span>
@@ -230,17 +227,26 @@ function SessionRow({ room, onView, onDelete }) {
           Host: {room.hostName} · {fmt(room.createdAt)} · {parts.length} participant{parts.length!==1?"s":""}
         </div>
       </div>
+      {!room.revealed&&(
+        <button onClick={()=>onRejoin(room.id)}
+          style={{flexShrink:0,background:T.tealBg,color:T.tealDark,border:`1px solid ${T.teal}40`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>
+          🔗 Rejoin
+        </button>
+      )}
+      <button onClick={()=>onView(room)}
+        style={{flexShrink:0,background:T.offWhite,color:T.gray500,border:`1px solid ${T.gray100}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:600,fontSize:12}}>
+        View →
+      </button>
       <button onClick={e=>{e.stopPropagation();onDelete(room);}}
-        style={{flexShrink:0,background:T.redBg,color:T.red,border:`1px solid ${T.red}30`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>
+        style={{flexShrink:0,background:"#FEF2F2",color:"#EF4444",border:"1px solid #EF444430",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>
         🗑
       </button>
-      <span style={{fontSize:11,color:T.gray300,flexShrink:0}}>View →</span>
     </div>
   );
 }
 
 // ─── TeamSection ──────────────────────────────────────────────────────────────
-function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDeleteRoom }) {
+function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDeleteRoom, onRejoinRoom }) {
   const [open, setOpen] = useState(true);
   const teamRooms = rooms.filter(r=>r.teamId===team.id);
 
@@ -266,7 +272,7 @@ function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDele
         <div style={{padding:"10px 14px 14px"}}>
           {teamRooms.length===0
             ? <div style={{textAlign:"center",color:T.gray300,fontSize:13,padding:"16px 0"}}>No sessions yet</div>
-            : teamRooms.map(r=><SessionRow key={r.id} room={r} onView={onViewRoom} onDelete={onDeleteRoom}/>)
+            : teamRooms.map(r=><SessionRow key={r.id} room={r} onView={onViewRoom} onDelete={onDeleteRoom} onRejoin={onRejoinRoom}/>)
           }
         </div>
       )}
@@ -275,7 +281,7 @@ function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDele
 }
 
 // ─── AdminPanel ───────────────────────────────────────────────────────────────
-export default function AdminPanel({ user, onNewSession }) {
+export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
   const [rooms,        setRooms]        = useState([]);
   const [teams,        setTeams]        = useState([]);
   const [loading,      setLoading]      = useState(true);
@@ -404,7 +410,8 @@ export default function AdminPanel({ user, onNewSession }) {
                 {filteredTeams.map(team=>(
                   <TeamSection key={team.id} team={team} rooms={rooms}
                     onEditTeam={handleEditTeam} onDeleteTeam={handleDeleteTeam}
-                    onViewRoom={setSelectedRoom} onDeleteRoom={handleDeleteRoom}/>
+                    onViewRoom={setSelectedRoom} onDeleteRoom={handleDeleteRoom}
+                    onRejoinRoom={onRejoinSession}/>
                 ))}
               </div>
             )}
@@ -415,7 +422,7 @@ export default function AdminPanel({ user, onNewSession }) {
                 <div style={{fontWeight:800,fontSize:13,color:T.gray500,marginBottom:10,letterSpacing:".5px"}}>SESSIONS WITHOUT A TEAM</div>
                 <div style={{background:T.offWhite,borderRadius:16,padding:"10px 14px 14px",border:`1.5px solid ${T.gray100}`}}>
                   {filteredUnassigned.map(r=>(
-                    <SessionRow key={r.id} room={r} onView={setSelectedRoom} onDelete={handleDeleteRoom}/>
+                    <SessionRow key={r.id} room={r} onView={setSelectedRoom} onDelete={handleDeleteRoom} onRejoin={onRejoinSession}/>
                   ))}
                 </div>
               </div>

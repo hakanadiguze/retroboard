@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { onValue, off, update } from "firebase/database";
-import { db, uid, nowISO, roomRef, fbGet, fbSet, signInWithGoogle, signOutUser, onAuth, getAllTeams } from "./firebase.js";
+import { uid, nowISO, roomRef, fbGet, fbSet, signInWithGoogle, signOutUser, onAuth, getAllTeams } from "./firebase.js";
 import AdminPanel from "./Admin.jsx";
 
 const VERSION = "v3";
@@ -11,13 +11,18 @@ const T = {
   white:"#FFFFFF", offWhite:"#F8FAFA",
   gray50:"#F0F4F4", gray100:"#DDE8E8", gray300:"#9BB8B8",
   gray500:"#5A7878", gray700:"#2D4A4A", dark:"#0A2020",
-  red:"#EF4444",
 };
 
-const COL_COLORS   = { Stop:"#FF6B6B", Start:"#34D399", Continue:"#60A5FA" };
-const COL_BG       = { Stop:"#FFF0F0", Start:"#F0FFF8", Continue:"#EFF6FF" };
-const COLUMNS      = ["Stop","Start","Continue"];
-const REACTIONS    = ["👍","👎","❤️","🔥","💡"];
+const COL_COLORS = { Stop:"#FF6B6B", Start:"#34D399", Continue:"#60A5FA" };
+const COL_BG     = { Stop:"#FFF5F5", Start:"#F0FFF8", Continue:"#EFF6FF" };
+const COLUMNS    = ["Stop","Start","Continue"];
+const REACTIONS  = ["👍","👎","❤️","🔥","💡"];
+
+const COL_DESC = {
+  Stop:     "What's hurting the team? What should we stop doing?",
+  Start:    "What should we try that we're not doing yet?",
+  Continue: "What's working well and should keep going?",
+};
 
 const DEFAULT_QUESTIONS = [
   { id:"q1", label:"How is your Mood Level?",          low:"😞 Unhappy", high:"😄 Happy", scale:5 },
@@ -25,7 +30,6 @@ const DEFAULT_QUESTIONS = [
   { id:"q3", label:"How do you feel about your role?", low:"😞 Unhappy", high:"😄 Happy", scale:5 },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function totalReactions(card) {
   return Object.values(card.reactions||{}).reduce((s,v)=>s+Object.keys(v||{}).length,0);
 }
@@ -34,7 +38,7 @@ function totalReactions(card) {
 async function exportPDF(room) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:"mm", format:"a4" });
-  const W=210, M=14, cW=W-M*2; let y=M;
+  const W=210,M=14,cW=W-M*2; let y=M;
   const hx=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
   const sf=c=>doc.setFillColor(...hx(c));
   const sc=c=>doc.setTextColor(...hx(c));
@@ -42,7 +46,7 @@ async function exportPDF(room) {
 
   sf(T.teal); doc.rect(0,0,W,28,"F");
   sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(20);
-  doc.text(`Retrospective Results`,M,13);
+  doc.text("Retrospective Results",M,13);
   doc.setFontSize(9); doc.setFont("helvetica","normal");
   doc.text(`RetroBoard ${VERSION} · ${new Date().toLocaleString()} · Room: ${room.id}${room.teamName?" · "+room.teamName:""}`,M,22);
   y=36;
@@ -51,18 +55,19 @@ async function exportPDF(room) {
   const questions=room.questions||DEFAULT_QUESTIONS;
   const avg=qid=>{ const v=parts.map(p=>p.scores?.[qid]).filter(Boolean); return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"-"; };
 
-  // Scores table
   sc(T.tealDark); doc.setFont("helvetica","bold"); doc.setFontSize(13);
   doc.text("Team Scores",M,y); y+=7;
-  const qColW=58, dataColW=Math.min(22,Math.floor((cW-qColW)/(parts.length+1)));
-  const tableW=qColW+(parts.length+1)*dataColW, rowH=9;
+
+  const qColW=58,dataColW=Math.min(22,Math.floor((cW-qColW)/(parts.length+1)));
+  const tableW=qColW+(parts.length+1)*dataColW,rowH=9;
   sf(T.teal); doc.rect(M,y,tableW,rowH,"F");
   sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
   doc.text("Question",M+2,y+6);
   parts.forEach((p,i)=>{ const x=M+qColW+i*dataColW; doc.text((p.name||"").slice(0,8),x+dataColW/2,y+6,{align:"center"}); });
-  sf("#076F6F"); doc.rect(M+qColW+parts.length*dataColW,y,dataColW,rowH,"F");
-  sc(T.white); doc.text("Avg",M+qColW+parts.length*dataColW+dataColW/2,y+6,{align:"center"});
-  y+=rowH;
+  const avgX=M+qColW+parts.length*dataColW;
+  sf("#076F6F"); doc.rect(avgX,y,dataColW,rowH,"F");
+  sc(T.white); doc.text("Avg",avgX+dataColW/2,y+6,{align:"center"}); y+=rowH;
+
   questions.forEach((q,qi)=>{
     const c=qColors[qi%qColors.length];
     qi%2===0?sf(T.offWhite):sf(T.white); doc.rect(M,y,tableW,rowH,"F");
@@ -71,20 +76,16 @@ async function exportPDF(room) {
     doc.text(q.label.slice(0,27)+(q.label.length>27?"…":""),M+5,y+6);
     doc.setFont("helvetica","normal");
     parts.forEach((p,i)=>{ sc(T.dark); doc.text(String(p.scores?.[q.id]??"-"),M+qColW+i*dataColW+dataColW/2,y+6,{align:"center"}); });
-    const ax=M+qColW+parts.length*dataColW;
-    sf(c); doc.rect(ax,y,dataColW,rowH,"F");
-    sc(T.white); doc.setFont("helvetica","bold"); doc.text(avg(q.id),ax+dataColW/2,y+6,{align:"center"});
-    y+=rowH;
+    sf(c); doc.rect(avgX,y,dataColW,rowH,"F");
+    sc(T.white); doc.setFont("helvetica","bold"); doc.text(avg(q.id),avgX+dataColW/2,y+6,{align:"center"}); y+=rowH;
   });
   y+=10;
 
-  // Board by column
-  const cards=room.boardEntries||[];
   for(const col of COLUMNS){
-    const colCards=[...cards.filter(c=>c.column===col)].sort((a,b)=>totalReactions(b)-totalReactions(a));
-    if(colCards.length===0) continue;
+    const colCards=[...(room.boardEntries||[])].filter(c=>c.column===col).sort((a,b)=>totalReactions(b)-totalReactions(a));
+    if(!colCards.length) continue;
     if(y>260){doc.addPage();y=M;}
-    const cc=col==="Stop"?"#FF6B6B":col==="Start"?"#34D399":"#60A5FA";
+    const cc=COL_COLORS[col];
     sf(cc); doc.rect(M,y,cW,8,"F");
     sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(11);
     doc.text(col,M+3,y+6); y+=10;
@@ -96,7 +97,7 @@ async function exportPDF(room) {
       const lines=doc.splitTextToSize(card.text||"",cW-42);
       doc.text(lines,M+40,y+4);
       const rx=totalReactions(card);
-      if(rx>0){ sc(T.gray500); doc.text(`[${rx} reactions]`,M+cW-20,y+4); }
+      if(rx>0){ sc(T.gray500); doc.text(`[${rx}]`,M+cW-10,y+4); }
       y+=Math.max(lines.length*5,5)+2;
     });
     y+=4;
@@ -112,13 +113,10 @@ function ScoreRating({ value, onChange, allow3, scale=5 }) {
     <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
       {scores.map(n=>(
         <button key={n} onClick={()=>onChange(n)} style={{
-          width:44,height:44,borderRadius:10,border:"none",cursor:"pointer",
-          fontWeight:800,fontSize:16,
-          background:value===n?T.orange:T.gray100,
-          color:value===n?T.white:T.gray500,
+          width:44,height:44,borderRadius:10,border:"none",cursor:"pointer",fontWeight:800,fontSize:16,
+          background:value===n?T.orange:T.gray100,color:value===n?T.white:T.gray500,
           boxShadow:value===n?`0 3px 10px ${T.orangeLight}`:"none",
-          transform:value===n?"scale(1.12)":"scale(1)",
-          transition:"all .15s",
+          transform:value===n?"scale(1.12)":"scale(1)",transition:"all .15s",
         }}>{n}</button>
       ))}
       {!allow3&&scale>=3&&<span style={{fontSize:11,color:T.gray300}}>(3 disabled)</span>}
@@ -177,105 +175,81 @@ function ScoresSummary({ participants, questions }) {
 }
 
 // ─── PostItCard ───────────────────────────────────────────────────────────────
-function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed, isOwn }) {
-  const [showActions, setShowActions] = useState(false);
-  const [actionText, setActionText]   = useState("");
-  const c   = COL_COLORS[card.column]||"#aaa";
-  const bg  = COL_BG[card.column]||"#fffde7";
+function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed }) {
+  const [showAction, setShowAction] = useState(false);
+  const [actText,    setActText]    = useState("");
+  const c  = COL_COLORS[card.column]||"#aaa";
+  const bg = COL_BG[card.column]||"#fffde7";
   const rxTotal = totalReactions(card);
 
-  // Sort reactions for display
-  const rxDisplay = REACTIONS.map(r=>{
-    const voters = card.reactions?.[r]||{};
-    const count  = Object.keys(voters).length;
-    const voted  = !!voters[myId];
-    return { r, count, voted };
-  }).filter(x=>x.count>0 || true);
-
-  function handleDoubleClick(e) {
-    e.stopPropagation();
-    if(revealed) setShowActions(v=>!v);
-  }
-
-  function submitAction(e) {
-    e && e.preventDefault();
-    if(!actionText.trim()) return;
-    onAddAction(card.id, actionText.trim());
-    setActionText("");
-    setShowActions(false);
+  function submitAction() {
+    if(!actText.trim()) return;
+    onAddAction(card.id, actText.trim());
+    setActText(""); setShowAction(false);
   }
 
   return (
     <div
-      draggable={!revealed}
-      onDragStart={revealed?undefined:e=>onDragStart(e,card)}
-      onDoubleClick={handleDoubleClick}
+      draggable
+      onDragStart={e=>onDragStart(e,card)}
+      onDoubleClick={e=>{ e.stopPropagation(); if(revealed) setShowAction(v=>!v); }}
       style={{
-        position:"absolute",
-        left:card.x||100,
-        top:card.y||100,
-        width:180,
-        background:bg,
-        borderRadius:4,
+        position:"absolute", left:card.x||100, top:card.y||100, width:180,
+        background:bg, borderRadius:4,
         boxShadow:`3px 3px 10px rgba(0,0,0,.18), inset 0 -3px 0 ${c}60`,
-        borderTop:`4px solid ${c}`,
-        padding:"10px 12px 8px",
-        cursor:revealed?"default":"grab",
-        userSelect:"none",
-        zIndex:card.z||1,
-        transition:"box-shadow .15s",
+        borderTop:`4px solid ${c}`, padding:"10px 12px 8px",
+        cursor:"grab", userSelect:"none", zIndex:card.z||1,
         fontFamily:"'Segoe UI',sans-serif",
-      }}
-    >
-      {/* Column badge */}
+      }}>
       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-        <span style={{background:c,color:"#fff",borderRadius:6,padding:"1px 7px",fontSize:9,fontWeight:800,letterSpacing:".3px"}}>{card.column}</span>
+        <span style={{background:c,color:"#fff",borderRadius:6,padding:"1px 7px",fontSize:9,fontWeight:800}}>{card.column}</span>
         <span style={{fontSize:10,color:T.gray500,fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{card.participantName}</span>
       </div>
-
-      {/* Text */}
       <div style={{fontSize:13,color:"#333",lineHeight:1.4,marginBottom:8,wordBreak:"break-word"}}>{card.text}</div>
 
-      {/* Reactions */}
-      {revealed&&(
-        <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:4}}>
-          {rxDisplay.map(({r,count,voted})=>(
-            <button key={r} onClick={()=>onReact(card.id,r)}
+      {/* Reactions — always visible */}
+      <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:4}}>
+        {REACTIONS.map(r=>{
+          const voters=card.reactions?.[r]||{};
+          const count=Object.keys(voters).length;
+          const voted=!!voters[myId];
+          return (
+            <button key={r} onClick={e=>{e.stopPropagation();onReact(card.id,r);}}
               style={{background:voted?`${c}30`:"rgba(0,0,0,.05)",border:voted?`1.5px solid ${c}`:"1.5px solid transparent",
-                borderRadius:10,padding:"2px 6px",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",gap:3,
+                borderRadius:10,padding:"2px 5px",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",gap:2,
                 color:voted?c:T.gray500,fontWeight:voted?700:400,transition:"all .15s"}}>
               {r}{count>0&&<span style={{fontSize:10,fontWeight:800}}>{count}</span>}
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
-      {/* Actions */}
+      {/* Actions list */}
       {(card.actions||[]).length>0&&(
         <div style={{borderTop:`1px solid ${c}30`,marginTop:4,paddingTop:4}}>
           {(card.actions||[]).map((a,i)=>(
-            <div key={i} style={{fontSize:10,color:T.gray700,padding:"1px 0"}}>⚡ {a}</div>
+            <div key={i} style={{fontSize:10,color:T.gray700}}>⚡ {a}</div>
           ))}
         </div>
       )}
 
-      {/* Add action (double-click on board) */}
-      {revealed&&showActions&&(
+      {/* Add action on double-click (revealed only) */}
+      {revealed&&showAction&&(
         <div style={{marginTop:6}} onClick={e=>e.stopPropagation()}>
-          <input autoFocus value={actionText} onChange={e=>setActionText(e.target.value)}
-            onKeyDown={e=>{if(e.key==="Enter")submitAction();if(e.key==="Escape")setShowActions(false);}}
+          <input autoFocus value={actText} onChange={e=>setActText(e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter")submitAction();if(e.key==="Escape")setShowAction(false);}}
             placeholder="Add action…"
             style={{width:"100%",padding:"4px 8px",borderRadius:6,border:`1.5px solid ${c}`,fontSize:12,outline:"none",boxSizing:"border-box",background:"#fff"}}/>
           <div style={{display:"flex",gap:4,marginTop:4}}>
             <button onClick={submitAction} style={{flex:1,background:c,color:"#fff",border:"none",borderRadius:6,padding:"3px 0",cursor:"pointer",fontSize:11,fontWeight:700}}>Add</button>
-            <button onClick={()=>setShowActions(false)} style={{flex:1,background:"#eee",color:T.gray500,border:"none",borderRadius:6,padding:"3px 0",cursor:"pointer",fontSize:11}}>Cancel</button>
+            <button onClick={()=>setShowAction(false)} style={{flex:1,background:"#eee",color:T.gray500,border:"none",borderRadius:6,padding:"3px 0",cursor:"pointer",fontSize:11}}>Cancel</button>
           </div>
         </div>
       )}
 
-      {/* Total reactions badge */}
       {rxTotal>0&&(
-        <div style={{position:"absolute",top:-8,right:-8,background:c,color:"#fff",borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,boxShadow:"0 2px 4px rgba(0,0,0,.2)"}}>
+        <div style={{position:"absolute",top:-8,right:-8,background:c,color:"#fff",borderRadius:"50%",width:20,height:20,
+          display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,boxShadow:"0 2px 4px rgba(0,0,0,.2)"}}>
           {rxTotal}
         </div>
       )}
@@ -284,127 +258,116 @@ function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed, i
 }
 
 // ─── PostItBoard ──────────────────────────────────────────────────────────────
-function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAddAction, revealed, readOnly }) {
-  const boardRef    = useRef(null);
-  const [newCardModal, setNewCardModal] = useState(null); // {x,y}
-  const [newText, setNewText]    = useState("");
-  const [newCol,  setNewCol]     = useState("Continue");
+function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAddAction, revealed }) {
+  const boardRef  = useRef(null);
   const dragCard  = useRef(null);
   const dragOff   = useRef({x:0,y:0});
+  const [modal,   setModal]   = useState(null);
+  const [newText, setNewText] = useState("");
+  const [newCol,  setNewCol]  = useState("Continue");
 
-  // Sort by reactions descending for z-index
   const sorted = [...cards].sort((a,b)=>totalReactions(a)-totalReactions(b));
+  const BOARD_H = Math.max(600, ...cards.map(c=>(c.y||0)+240), 600);
 
-  function handleBoardDoubleClick(e) {
-    if(readOnly) return;
+  function openModal(x,y){ setModal({x,y}); setNewText(""); setNewCol("Continue"); }
+
+  function handleBoardDblClick(e){
     if(e.target!==boardRef.current&&!e.target.classList.contains("board-bg")) return;
     const rect=boardRef.current.getBoundingClientRect();
-    setNewCardModal({x:e.clientX-rect.left-90, y:e.clientY-rect.top-60});
-    setNewText(""); setNewCol("Continue");
+    openModal(e.clientX-rect.left-90, e.clientY-rect.top-60);
   }
 
-  function submitNewCard() {
+  function submitCard(){
     if(!newText.trim()) return;
     onAddCard({ id:uid(), text:newText.trim(), column:newCol, participantName:myName,
-      x:newCardModal.x, y:newCardModal.y, z:Date.now(), reactions:{}, actions:[] });
-    setNewCardModal(null); setNewText("");
+      participantId:myId, x:modal.x, y:modal.y, z:Date.now(), reactions:{}, actions:[] });
+    setModal(null); setNewText("");
   }
 
-  // Drag handlers
-  function handleDragStart(e, card) {
-    dragCard.current = card;
-    const rect = e.currentTarget.getBoundingClientRect();
-    dragOff.current = { x: e.clientX-rect.left, y: e.clientY-rect.top };
-    e.dataTransfer.effectAllowed = "move";
+  function handleDragStart(e,card){
+    dragCard.current=card;
+    const rect=e.currentTarget.getBoundingClientRect();
+    dragOff.current={x:e.clientX-rect.left, y:e.clientY-rect.top};
+    e.dataTransfer.effectAllowed="move";
   }
 
-  function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect="move"; }
-
-  function handleDrop(e) {
+  function handleDrop(e){
     e.preventDefault();
     if(!dragCard.current) return;
     const rect=boardRef.current.getBoundingClientRect();
-    const x=e.clientX-rect.left-dragOff.current.x;
-    const y=e.clientY-rect.top-dragOff.current.y;
-    onMoveCard(dragCard.current.id, Math.max(0,x), Math.max(0,y));
+    const x=Math.max(0,e.clientX-rect.left-dragOff.current.x);
+    const y=Math.max(0,e.clientY-rect.top-dragOff.current.y);
+    onMoveCard(dragCard.current.id, x, y);
     dragCard.current=null;
   }
 
-  const BOARD_H = Math.max(600, ...cards.map(c=>(c.y||0)+220));
-
   return (
     <div style={{position:"relative"}}>
-      {/* Legend */}
-      <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
+      {/* Legend with descriptions */}
+      <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}>
         {COLUMNS.map(col=>(
-          <div key={col} style={{display:"flex",alignItems:"center",gap:6,background:COL_BG[col],border:`2px solid ${COL_COLORS[col]}`,borderRadius:10,padding:"4px 12px"}}>
-            <div style={{width:10,height:10,borderRadius:2,background:COL_COLORS[col]}}/>
-            <span style={{fontSize:12,fontWeight:700,color:COL_COLORS[col]}}>{col}</span>
+          <div key={col} style={{flex:"1 1 180px",background:COL_BG[col],border:`2px solid ${COL_COLORS[col]}`,borderRadius:12,padding:"10px 14px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+              <div style={{width:10,height:10,borderRadius:2,background:COL_COLORS[col],flexShrink:0}}/>
+              <span style={{fontSize:13,fontWeight:800,color:COL_COLORS[col]}}>{col}</span>
+            </div>
+            <div style={{fontSize:11,color:T.gray500,lineHeight:1.4}}>{COL_DESC[col]}</div>
           </div>
         ))}
-        {!readOnly&&(
-          <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
-            <button onClick={()=>{ const rect=boardRef.current?.getBoundingClientRect(); setNewCardModal({x:80+Math.random()*200,y:80+Math.random()*150}); setNewText(""); setNewCol("Continue"); }}
-              style={{background:T.teal,color:"#fff",border:"none",borderRadius:10,padding:"6px 14px",cursor:"pointer",fontWeight:700,fontSize:13}}>
-              + Add Post-it
-            </button>
-            <span style={{fontSize:11,color:T.gray300}}>or double-click board</span>
-          </div>
-        )}
-        {revealed&&<span style={{fontSize:11,color:T.gray500,marginLeft:"auto"}}>Double-click a card to add action</span>}
+      </div>
+
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+        <button onClick={()=>openModal(60+Math.random()*200, 60+Math.random()*140)}
+          style={{background:T.teal,color:"#fff",border:"none",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13}}>
+          + Add Post-it
+        </button>
+        <span style={{fontSize:11,color:T.gray300}}>or double-click the board</span>
+        {revealed&&<span style={{fontSize:11,color:T.gray500,marginLeft:"auto"}}>Double-click a card to add an action</span>}
       </div>
 
       {/* Board */}
-      <div ref={boardRef}
-        className="board-bg"
-        onDoubleClick={handleBoardDoubleClick}
-        onDragOver={handleDragOver}
+      <div ref={boardRef} className="board-bg"
+        onDoubleClick={handleBoardDblClick}
+        onDragOver={e=>e.preventDefault()}
         onDrop={handleDrop}
         style={{
           position:"relative",width:"100%",height:BOARD_H,
           background:"repeating-linear-gradient(0deg,transparent,transparent 24px,#e0e8e840 24px,#e0e8e840 25px),repeating-linear-gradient(90deg,transparent,transparent 24px,#e0e8e840 24px,#e0e8e840 25px)",
-          backgroundColor:"#f0f6f6",
-          borderRadius:16,border:`1.5px solid ${T.gray100}`,
-          overflow:"hidden",
+          backgroundColor:"#f0f6f6",borderRadius:16,border:`1.5px solid ${T.gray100}`,overflow:"hidden",
         }}>
         {sorted.map((card,i)=>(
           <PostItCard key={card.id} card={{...card,z:i+1}} myId={myId}
-            onDragStart={handleDragStart}
-            onReact={onReact}
-            onAddAction={onAddAction}
-            revealed={revealed}
-            isOwn={card.participantId===myId||card.participantName===myName}
-          />
+            onDragStart={handleDragStart} onReact={onReact}
+            onAddAction={onAddAction} revealed={revealed}/>
         ))}
 
         {/* New card modal */}
-        {newCardModal&&(
-          <div style={{position:"absolute",left:newCardModal.x,top:newCardModal.y,width:220,background:"#fff",borderRadius:12,
-            boxShadow:"0 8px 32px rgba(0,0,0,.2)",padding:16,zIndex:9999}}
+        {modal&&(
+          <div style={{position:"absolute",left:Math.min(modal.x, BOARD_H>0?600:modal.x),top:modal.y,width:220,
+            background:"#fff",borderRadius:12,boxShadow:"0 8px 32px rgba(0,0,0,.2)",padding:16,zIndex:9999}}
             onClick={e=>e.stopPropagation()}>
             <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:10}}>New Post-it</div>
             <textarea value={newText} onChange={e=>setNewText(e.target.value)} autoFocus
               placeholder="What's on your mind?"
-              style={{width:"100%",height:72,padding:"8px",borderRadius:8,border:`1.5px solid ${T.gray100}`,fontSize:13,resize:"none",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
-            {/* Column picker */}
+              style={{width:"100%",height:72,padding:"8px",borderRadius:8,border:`1.5px solid ${T.gray100}`,
+                fontSize:13,resize:"none",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
             <div style={{display:"flex",gap:6,margin:"8px 0"}}>
               {COLUMNS.map(col=>(
                 <button key={col} onClick={()=>setNewCol(col)}
                   style={{flex:1,padding:"5px 0",borderRadius:8,border:`2px solid ${newCol===col?COL_COLORS[col]:T.gray100}`,
-                    background:newCol===col?COL_BG[col]:"#fff",color:COL_COLORS[col],fontWeight:700,fontSize:11,cursor:"pointer"}}>
+                    background:newCol===col?COL_BG[col]:"#fff",color:COL_COLORS[col],fontWeight:700,fontSize:10,cursor:"pointer"}}>
                   {col}
                 </button>
               ))}
             </div>
             <div style={{display:"flex",gap:6}}>
-              <button onClick={submitNewCard} disabled={!newText.trim()}
-                style={{flex:1,background:COL_COLORS[newCol],color:"#fff",border:"none",borderRadius:8,padding:"8px 0",fontWeight:700,fontSize:13,cursor:newText.trim()?"pointer":"default",opacity:newText.trim()?1:.5}}>
+              <button onClick={submitCard} disabled={!newText.trim()}
+                style={{flex:1,background:COL_COLORS[newCol],color:"#fff",border:"none",borderRadius:8,padding:"8px 0",
+                  fontWeight:700,fontSize:13,cursor:newText.trim()?"pointer":"default",opacity:newText.trim()?1:.5}}>
                 Post it!
               </button>
-              <button onClick={()=>setNewCardModal(null)}
-                style={{background:"#eee",color:T.gray500,border:"none",borderRadius:8,padding:"8px 12px",cursor:"pointer",fontWeight:600,fontSize:13}}>
-                ✕
-              </button>
+              <button onClick={()=>setModal(null)}
+                style={{background:"#eee",color:T.gray500,border:"none",borderRadius:8,padding:"8px 12px",cursor:"pointer",fontSize:13}}>✕</button>
             </div>
           </div>
         )}
@@ -415,16 +378,16 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
 
 // ─── SetupScreen ──────────────────────────────────────────────────────────────
 function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
-  const [questions,setQuestions] = useState(DEFAULT_QUESTIONS.map(q=>({...q})));
-  const [allow3,setAllow3]       = useState(false);
-  const [teamId,setTeamId]       = useState("");
+  const [questions,setQuestions]     = useState(DEFAULT_QUESTIONS.map(q=>({...q})));
+  const [allow3,setAllow3]           = useState(false);
+  const [teamId,setTeamId]           = useState("");
   const [sessionName,setSessionName] = useState("");
 
   function updateQ(i,f,v){ setQuestions(qs=>qs.map((q,j)=>j===i?{...q,[f]:v}:q)); }
   function addQ(){ if(questions.length>=5)return; setQuestions(qs=>[...qs,{id:`q${uid()}`,label:"New question",low:"Low",high:"High",scale:5}]); }
   function delQ(i){ if(questions.length<=1)return; setQuestions(qs=>qs.filter((_,j)=>j!==i)); }
 
-  const selectedTeam=teams.find(t=>t.id===teamId);
+  const sel=teams.find(t=>t.id===teamId);
   const inp={padding:"8px 12px",borderRadius:8,border:`1.5px solid ${T.gray100}`,fontSize:13,color:T.dark,outline:"none",width:"100%",boxSizing:"border-box"};
 
   return (
@@ -441,8 +404,7 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
           {isAdmin&&(
             <div style={{marginBottom:20}}>
               <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:8}}>📝 Session Name <span style={{color:T.gray300,fontWeight:400,fontSize:12}}>(optional)</span></div>
-              <input value={sessionName} onChange={e=>setSessionName(e.target.value)}
-                placeholder="e.g. Sprint 42 Retro, Q2 Review…" style={{...inp,fontSize:14,padding:"10px 14px"}}/>
+              <input value={sessionName} onChange={e=>setSessionName(e.target.value)} placeholder="e.g. Sprint 42 Retro…" style={{...inp,fontSize:14,padding:"10px 14px"}}/>
             </div>
           )}
 
@@ -450,8 +412,7 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
             <div style={{marginBottom:20}}>
               <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:10}}>👥 Team (optional)</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <button onClick={()=>setTeamId("")}
-                  style={{padding:"7px 14px",borderRadius:10,border:`2px solid ${!teamId?T.teal:T.gray100}`,background:!teamId?T.tealBg:"#fff",color:!teamId?T.tealDark:T.gray500,fontWeight:700,fontSize:13,cursor:"pointer"}}>No Team</button>
+                <button onClick={()=>setTeamId("")} style={{padding:"7px 14px",borderRadius:10,border:`2px solid ${!teamId?T.teal:T.gray100}`,background:!teamId?T.tealBg:"#fff",color:!teamId?T.tealDark:T.gray500,fontWeight:700,fontSize:13,cursor:"pointer"}}>No Team</button>
                 {teams.map(t=>(
                   <button key={t.id} onClick={()=>setTeamId(t.id)}
                     style={{padding:"7px 14px",borderRadius:10,border:`2px solid ${teamId===t.id?T.teal:T.gray100}`,background:teamId===t.id?T.tealBg:"#fff",color:teamId===t.id?T.tealDark:T.gray500,fontWeight:700,fontSize:13,cursor:"pointer"}}>
@@ -469,7 +430,7 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
                 <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
                   <span style={{background:T.teal,color:"#fff",borderRadius:8,width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,flexShrink:0}}>{i+1}</span>
                   <input value={q.label} onChange={e=>updateQ(i,"label",e.target.value)} style={{...inp,fontWeight:700,fontSize:14,flex:1}}/>
-                  {questions.length>1&&<button onClick={()=>delQ(i)} style={{background:"none",border:"none",color:T.gray300,cursor:"pointer",fontSize:20,lineHeight:1,padding:"0 4px"}}>×</button>}
+                  {questions.length>1&&<button onClick={()=>delQ(i)} style={{background:"none",border:"none",color:T.gray300,cursor:"pointer",fontSize:20,lineHeight:1}}>×</button>}
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:8}}>
                   <div><div style={{fontSize:11,color:T.gray500,marginBottom:3}}>Low</div><input value={q.low} onChange={e=>updateQ(i,"low",e.target.value)} style={inp}/></div>
@@ -490,11 +451,11 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
               <div onClick={()=>setAllow3(v=>!v)} style={{width:42,height:24,borderRadius:12,position:"relative",cursor:"pointer",flexShrink:0,background:allow3?T.teal:T.gray100,transition:"background .2s"}}>
                 <div style={{position:"absolute",top:3,left:allow3?21:3,width:18,height:18,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,.2)",transition:"left .2s"}}/>
               </div>
-              <div><div style={{fontWeight:700,fontSize:13,color:T.dark}}>Allow score 3</div><div style={{fontSize:11,color:T.gray500}}>By default 3 is disabled to avoid middle-ground</div></div>
+              <div><div style={{fontWeight:700,fontSize:13,color:T.dark}}>Allow score 3</div><div style={{fontSize:11,color:T.gray500}}>By default 3 is disabled to avoid middle-ground answers</div></div>
             </label>
           </div>
 
-          <button onClick={()=>onCreate(questions,allow3,teamId,selectedTeam?.name||"",sessionName.trim())}
+          <button onClick={()=>onCreate(questions,allow3,teamId,sel?.name||"",sessionName.trim())}
             style={{width:"100%",background:T.orange,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:16,cursor:"pointer"}}>
             🚀 Create Session & Get Link →
           </button>
@@ -507,21 +468,18 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName="" }) {
   const [hostName,setHostName]=useState(prefilledName.slice(0,15));
-  const [joinId,setJoinId]=useState("");
-  const [joinName,setJoinName]=useState("");
-  const [joinOpen,setJoinOpen]=useState(false);
-  const [howOpen,setHowOpen]=useState(false);
+  const [joinId,setJoinId]=useState(""); const [joinName,setJoinName]=useState("");
+  const [joinOpen,setJoinOpen]=useState(false); const [howOpen,setHowOpen]=useState(false);
   const [error,setError]=useState("");
   const MAX=15;
   const inp={width:"100%",padding:"12px 16px",borderRadius:12,border:`1.5px solid #DDE8E8`,fontSize:15,color:T.dark,outline:"none",boxSizing:"border-box",background:"#fff"};
-
   return (
     <div style={{minHeight:"100vh",background:"#E8F8F5",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px 16px"}}>
       <div style={{width:"100%",maxWidth:540,background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(13,158,158,.13)",padding:"36px 32px",border:`1.5px solid ${T.tealLight}40`}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{fontSize:48,marginBottom:6}}>🔄</div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:4}}>
-            <h1 style={{fontSize:30,fontWeight:900,color:"#1a2e2e",margin:0,letterSpacing:"-.5px"}}>RetroBoard</h1>
+            <h1 style={{fontSize:30,fontWeight:900,color:"#1a2e2e",margin:0}}>RetroBoard</h1>
             <span style={{background:T.tealBg,color:T.tealDark,borderRadius:8,padding:"3px 10px",fontSize:13,fontWeight:800}}>{VERSION}</span>
           </div>
           <p style={{color:"#7a9a9a",margin:0,fontSize:14}}>Real-time retrospectives for agile teams</p>
@@ -543,8 +501,7 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
         </div>
 
         <div style={{border:`1.5px solid ${T.gray100}`,borderRadius:16,overflow:"hidden",marginBottom:10}}>
-          <button onClick={()=>setJoinOpen(o=>!o)}
-            style={{width:"100%",background:"#fff",border:"none",padding:"14px 20px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",fontWeight:700,fontSize:14,color:"#2a5a5a"}}>
+          <button onClick={()=>setJoinOpen(o=>!o)} style={{width:"100%",background:"#fff",border:"none",padding:"14px 20px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",fontWeight:700,fontSize:14,color:"#2a5a5a"}}>
             <span>👥</span><span>Join with Room ID</span>
             <span style={{marginLeft:"auto",color:T.gray300,fontSize:18,transform:joinOpen?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>›</span>
           </button>
@@ -558,31 +515,28 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
                 <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:11,color:joinName.length>=MAX?"#F07030":T.gray300}}>{joinName.length}/{MAX}</span>
               </div>
               {error&&joinOpen&&<div style={{color:T.orange,fontSize:13,marginBottom:8}}>{error}</div>}
-              <button onClick={()=>onJoin(joinId,joinName,setError)}
-                style={{width:"100%",background:T.teal,color:"#fff",border:"none",borderRadius:14,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-                🔗 Join Session
-              </button>
+              <button onClick={()=>onJoin(joinId,joinName,setError)} style={{width:"100%",background:T.teal,color:"#fff",border:"none",borderRadius:14,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>🔗 Join Session</button>
             </div>
           )}
         </div>
 
         <div style={{border:`1.5px solid ${T.gray100}`,borderRadius:16,overflow:"hidden",marginBottom:10}}>
-          <button onClick={()=>setHowOpen(o=>!o)}
-            style={{width:"100%",background:"#fff",border:"none",padding:"14px 20px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",fontWeight:600,fontSize:14,color:"#2a5a5a"}}>
+          <button onClick={()=>setHowOpen(o=>!o)} style={{width:"100%",background:"#fff",border:"none",padding:"14px 20px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",fontWeight:600,fontSize:14,color:"#2a5a5a"}}>
             <span style={{color:"#e05050",fontWeight:900}}>?</span><span>How does this work?</span>
             <span style={{marginLeft:"auto",color:T.gray300,fontSize:18,transform:howOpen?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>›</span>
           </button>
           {howOpen&&(
             <div style={{padding:"4px 20px 16px",borderTop:`1px solid ${T.gray100}`,background:"#fafefe"}}>
               {[
-                ["🚀","Create a session","Configure questions, name your session, and get a shareable link."],
-                ["🔗","Share the link","Team opens the link and enters their name — no sign-up needed."],
-                ["📊","Rate & post-it","Rate health questions and add post-it cards to the board. Choose Stop / Start / Continue for each card."],
-                ["✅","Submit","Once done, submit. Nobody sees anyone else's input until the host reveals."],
-                ["🎉","Reveal","Host reveals — all scores and post-its appear on the shared board."],
-                ["👍","React & vote","React to post-its with 👍👎❤️🔥💡. Most reacted cards float to top."],
-                ["⚡","Actions","Double-click any post-it to add an action item directly on the card."],
-                ["📥","Export PDF","Download a full PDF of results, sorted by reactions."],
+                ["🚀","Create","Configure questions and get a shareable link."],
+                ["🔗","Share","Team opens the link — no sign-up needed."],
+                ["🗒️","Post-its","Add cards to the shared board in real-time. Choose Stop 🔴 / Start 🟢 / Continue 🔵 for each."],
+                ["📊","Rate","Rate team health questions (mood, stress, role)."],
+                ["✅","Submit","Submit your scores. Post-its are already visible to everyone."],
+                ["🎉","Reveal","Host reveals scores — everyone sees the results."],
+                ["👍","React","React to cards with 👍👎❤️🔥💡 — most reacted float to top."],
+                ["⚡","Actions","Double-click a card to add an action item."],
+                ["📥","PDF","Download full PDF of results."],
               ].map(([icon,title,desc])=>(
                 <div key={title} style={{display:"flex",gap:12,padding:"8px 0",borderBottom:`1px solid ${T.gray50}`}}>
                   <div style={{fontSize:15,width:26,flexShrink:0,marginTop:2}}>{icon}</div>
@@ -604,8 +558,7 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
               Admin Panel →
             </button>
           ):(
-            <button onClick={onAdminLogin}
-              style={{background:"none",color:T.gray500,border:`1.5px solid ${T.gray100}`,borderRadius:12,padding:"10px 20px",fontWeight:600,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:8,margin:"0 auto"}}>
+            <button onClick={onAdminLogin} style={{background:"none",color:T.gray500,border:`1.5px solid ${T.gray100}`,borderRadius:12,padding:"10px 20px",fontWeight:600,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:8,margin:"0 auto"}}>
               <span style={{fontSize:16}}>🔐</span> Admin Login (Google)
             </button>
           )}
@@ -631,9 +584,9 @@ function JoinScreen({ onJoin, roomId }) {
             <h1 style={{fontSize:22,fontWeight:900,color:"#1a2e2e",margin:0}}>{isRevealed?"View Results":"You're invited!"}</h1>
             <span style={{background:T.tealBg,color:T.tealDark,borderRadius:6,padding:"2px 7px",fontSize:11,fontWeight:800}}>{VERSION}</span>
           </div>
-          <p style={{color:"#7a9a9a",margin:0,fontSize:14}}>{isRevealed?"Session complete — enter your name to view.":"Enter your name to join this retrospective."}</p>
+          <p style={{color:"#7a9a9a",margin:0,fontSize:14}}>{isRevealed?"Session complete — enter your name to view.":"Enter your name to join."}</p>
         </div>
-        {isRevealed&&<div style={{background:"#E6F7F7",border:"1.5px solid #7FDADA",borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:T.tealDark,fontWeight:600}}>👁️ Read-only — results visible to everyone.</div>}
+        {isRevealed&&<div style={{background:"#E6F7F7",border:"1.5px solid #7FDADA",borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:T.tealDark,fontWeight:600}}>👁️ Read-only — results are visible to everyone.</div>}
         <div style={{position:"relative"}}>
           <input value={name} onChange={e=>{setName(e.target.value.slice(0,MAX));setError("");}} onKeyDown={e=>e.key==="Enter"&&go()}
             placeholder="Your name" autoFocus maxLength={MAX}
@@ -653,19 +606,18 @@ function JoinScreen({ onJoin, roomId }) {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [view,           setView]           = useState("home");
-  const [room,           setRoom]           = useState(null);
-  const [roomId,         setRoomId]         = useState(null);
-  const [myId,           setMyId]           = useState(null);
-  const [myName,         setMyName]         = useState("");
-  const [isHost,         setIsHost]         = useState(false);
-  const [copied,         setCopied]         = useState(false);
-  const [scores,         setScores]         = useState({});
-  const [localCards,     setLocalCards]     = useState([]); // pre-submit cards
-  const [setupName,      setSetupName]      = useState("");
-  const [submitError,    setSubmitError]    = useState("");
-  const [adminUser,      setAdminUser]      = useState(null);
-  const [teams,          setTeams]          = useState([]);
+  const [view,        setView]        = useState("home");
+  const [room,        setRoom]        = useState(null);
+  const [roomId,      setRoomId]      = useState(null);
+  const [myId,        setMyId]        = useState(null);
+  const [myName,      setMyName]      = useState("");
+  const [isHost,      setIsHost]      = useState(false);
+  const [copied,      setCopied]      = useState(false);
+  const [scores,      setScores]      = useState({});
+  const [submitError, setSubmitError] = useState("");
+  const [setupName,   setSetupName]   = useState("");
+  const [adminUser,   setAdminUser]   = useState(null);
+  const [teams,       setTeams]       = useState([]);
   const skipHashRef = useRef(false);
   const unsubRef    = useRef(null);
 
@@ -700,19 +652,19 @@ export default function App() {
 
   async function handleCreate(questions,allow3,teamId,teamName,sessionName){
     const id=uid(),pid=uid();
-    const r={id,createdAt:nowISO(),hostName:setupName,revealed:false,allow3:!!allow3,questions,
+    const r={id,createdAt:nowISO(),hostName:setupName,hostId:pid,revealed:false,allow3:!!allow3,questions,
       teamId:teamId||"",teamName:teamName||"",sessionName:sessionName||"",createdBy:adminUser?.uid||"",
-      participants:{},boardEntries:[],actions:{Stop:[],Start:[],Continue:[]}};
+      participants:{},boardEntries:[],};
     r.participants[pid]={name:setupName,scores:{},submitted:false,joinedAt:nowISO()};
     await fbSet(id,r);
     const init={};questions.forEach(q=>{init[q.id]=0;});
-    setRoomId(id);setMyId(pid);setMyName(setupName);setIsHost(true);setRoom(r);setScores(init);setLocalCards([]);
+    setRoomId(id);setMyId(pid);setMyName(setupName);setIsHost(true);setRoom(r);setScores(init);
     skipHashRef.current=true;
     window.location.hash=`retro-${id}`;
     listenRoom(id);setView("input");
   }
 
-  async function handleJoin(rawId,name,setError){
+  async function handleJoin(rawId,name,setError,forceHost=false){
     if(!name.trim()){setError("Please enter your name");return;}
     const id=(rawId||"").trim().replace(/.*#retro-/,"").replace("retro-","")||roomId;
     if(!id){setError("Enter a valid room ID");return;}
@@ -720,49 +672,47 @@ export default function App() {
     if(!r){setError("Room not found.");return;}
     const pid=uid();
     if(r.revealed){
-      setRoomId(id);setMyId(pid);setMyName(name.trim());setIsHost(false);setRoom(r);
+      setRoomId(id);setMyId(pid);setMyName(name.trim());setIsHost(forceHost);setRoom(r);
       skipHashRef.current=true;window.location.hash=`retro-${id}`;listenRoom(id);setView("board");return;
     }
     const init={};(r.questions||DEFAULT_QUESTIONS).forEach(q=>{init[q.id]=0;});
+    // Check if rejoining as host
+    const isRejoinHost = forceHost || (adminUser && r.createdBy===adminUser.uid);
     const updated={...r,participants:{...(r.participants||{}),[pid]:{name:name.trim(),scores:{},submitted:false,joinedAt:nowISO()}}};
     await fbSet(id,updated);
-    setRoomId(id);setMyId(pid);setMyName(name.trim());setIsHost(false);setRoom(updated);setScores(init);setLocalCards([]);
+    setRoomId(id);setMyId(pid);setMyName(name.trim());setIsHost(isRejoinHost);setRoom(updated);setScores(init);
     skipHashRef.current=true;window.location.hash=`retro-${id}`;listenRoom(id);setView("input");
   }
 
-  async function handleJoinFromLink(name,setError){await handleJoin(roomId,name,setError);}
+  async function handleJoinFromLink(name,setError){ await handleJoin(roomId,name,setError); }
+
+  // Admin rejoin: called from Admin panel with roomId
+  function handleAdminRejoin(rid){
+    setRoomId(rid);
+    setSetupName(adminUser?.displayName?.split(" ")[0]||"Admin");
+    setView("join");
+    skipHashRef.current=true;
+    window.location.hash=`retro-${rid}`;
+  }
 
   async function submitAnswers(setError){
     const questions=room?.questions||DEFAULT_QUESTIONS;
     if(!questions.every(q=>scores[q.id]>0)){setError("Please rate all questions");return;}
-    const patch={[`participants/${myId}/scores`]:scores,[`participants/${myId}/submitted`]:true};
-    await update(roomRef(roomId),patch);
+    await update(roomRef(roomId),{[`participants/${myId}/scores`]:scores,[`participants/${myId}/submitted`]:true});
     setView("waiting");
   }
 
   async function revealResults(){
-    const r=await fbGet(roomId);
-    // Merge all local cards from participants — in this new model cards are stored per participant
-    const allCards=Object.values(r.participants||{}).flatMap(p=>p.cards||[]);
-    await update(roomRef(roomId),{revealed:true,boardEntries:allCards});
+    await update(roomRef(roomId),{revealed:true});
   }
 
-  // ── Card operations ──────────────────────────────────────────────────────────
-  // Before reveal: local state + firebase per participant
+  // ── Board card operations (real-time, stored in boardEntries always) ─────────
   async function handleAddCard(card){
-    const newCard={...card,participantId:myId,participantName:myName};
-    const newCards=[...localCards,newCard];
-    setLocalCards(newCards);
-    await update(roomRef(roomId),{[`participants/${myId}/cards`]:newCards});
+    const r=await fbGet(roomId);
+    const entries=[...(r.boardEntries||[]),{...card,participantId:myId,participantName:myName}];
+    await update(roomRef(roomId),{boardEntries:entries});
   }
 
-  async function handleMoveLocalCard(cardId,x,y){
-    const updated=localCards.map(c=>c.id===cardId?{...c,x,y}:c);
-    setLocalCards(updated);
-    await update(roomRef(roomId),{[`participants/${myId}/cards`]:updated});
-  }
-
-  // After reveal: board entries
   async function handleMoveCard(cardId,x,y){
     const r=await fbGet(roomId);
     const updated=(r.boardEntries||[]).map(c=>c.id===cardId?{...c,x,y,z:Date.now()}:c);
@@ -771,7 +721,7 @@ export default function App() {
 
   async function handleReact(cardId,emoji){
     const r=await fbGet(roomId);
-    const entries=(r.boardEntries||[]);
+    const entries=r.boardEntries||[];
     const card=entries.find(c=>c.id===cardId);
     if(!card) return;
     const voters={...(card.reactions?.[emoji]||{})};
@@ -792,7 +742,6 @@ export default function App() {
   const card=(ex={})=>({background:T.white,borderRadius:20,padding:24,boxShadow:`0 6px 32px ${T.teal}15`,...ex});
   const btn=(bg,color=T.white,ex={})=>({background:bg,color,border:"none",borderRadius:12,padding:"10px 20px",fontWeight:700,fontSize:14,cursor:"pointer",...ex});
 
-  // Topbar shared
   function Topbar(){
     return (
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,background:T.white,borderRadius:16,padding:"12px 20px",boxShadow:`0 3px 14px ${T.teal}12`}}>
@@ -813,8 +762,11 @@ export default function App() {
     );
   }
 
+  // ── Views ─────────────────────────────────────────────────────────────────────
   if(view==="admin") return adminUser
-    ? <AdminPanel user={adminUser} onNewSession={()=>{skipHashRef.current=true;window.location.hash="";setView("home");}}/>
+    ? <AdminPanel user={adminUser}
+        onNewSession={()=>{skipHashRef.current=true;window.location.hash="";setView("home");}}
+        onRejoinSession={handleAdminRejoin}/>
     : <div style={{...base,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
         <div style={{fontSize:48}}>🔐</div>
         <div style={{fontWeight:700,color:T.tealDark,fontSize:18}}>Admin login required</div>
@@ -826,6 +778,8 @@ export default function App() {
   if(view==="setup") return <SetupScreen hostName={setupName} onBack={()=>setView("home")} onCreate={handleCreate} teams={teams} isAdmin={!!adminUser}/>;
   if(view==="join")  return <JoinScreen onJoin={handleJoinFromLink} roomId={roomId}/>;
 
+  const boardCards = room?.boardEntries||[];
+
   if(view==="input"){
     const questions=room?.questions||DEFAULT_QUESTIONS;
     const allow3=room?.allow3??false;
@@ -834,7 +788,6 @@ export default function App() {
       <div style={base}>
         <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 16px 60px"}}>
           <Topbar/>
-          {/* Participant status */}
           {room&&(
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
               {Object.values(room.participants||{}).map(p=>(
@@ -844,7 +797,6 @@ export default function App() {
               ))}
             </div>
           )}
-          {/* Score questions */}
           <div style={card({marginBottom:20})}>
             <h2 style={{fontSize:16,fontWeight:800,color:T.tealDark,marginTop:0,marginBottom:16}}>📊 Rate Your Team Experience</h2>
             {questions.map(q=>(
@@ -858,29 +810,22 @@ export default function App() {
               </div>
             ))}
           </div>
-          {/* Post-it board */}
           <div style={card({marginBottom:20,padding:20})}>
-            <h2 style={{fontSize:16,fontWeight:800,color:T.tealDark,marginTop:0,marginBottom:4}}>🗒️ Your Post-its</h2>
-            <p style={{fontSize:12,color:T.gray500,margin:"0 0 16px"}}>Add cards for Stop, Start, and Continue. Double-click the board or press "+ Add Post-it".</p>
+            <h2 style={{fontSize:16,fontWeight:800,color:T.tealDark,marginTop:0,marginBottom:4}}>🗒️ Team Board</h2>
+            <p style={{fontSize:12,color:T.gray500,margin:"0 0 16px"}}>Post-its are visible to everyone in real-time. Add yours and react to others!</p>
             <PostItBoard
-              cards={localCards}
-              myId={myId} myName={myName}
-              onAddCard={handleAddCard}
-              onMoveCard={handleMoveLocalCard}
-              onReact={()=>{}}
-              onAddAction={()=>{}}
-              revealed={false}
-              readOnly={false}
-            />
+              cards={boardCards} myId={myId} myName={myName}
+              onAddCard={handleAddCard} onMoveCard={handleMoveCard}
+              onReact={handleReact} onAddAction={handleAddAction}
+              revealed={false}/>
           </div>
-          {/* Submit */}
           <div>
             {submitError&&<div style={{color:T.orange,fontWeight:600,marginBottom:10,textAlign:"center",fontSize:14}}>{submitError}</div>}
             <button onClick={()=>submitAnswers(setSubmitError)} disabled={!allScored}
               style={{width:"100%",background:room?.participants?.[myId]?.submitted?T.teal:T.orange,color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:16,cursor:allScored?"pointer":"default",opacity:allScored?1:.5}}>
-              {room?.participants?.[myId]?.submitted?"🔄 Update My Answers":"✅ Submit My Answers"}
+              {room?.participants?.[myId]?.submitted?"🔄 Update My Scores":"✅ Submit My Scores"}
             </button>
-            {!allScored&&<div style={{textAlign:"center",color:T.gray300,fontSize:12,marginTop:6}}>Rate all questions to enable submit</div>}
+            {!allScored&&<div style={{textAlign:"center",color:T.gray300,fontSize:12,marginTop:6}}>Rate all questions to submit</div>}
           </div>
         </div>
       </div>
@@ -893,28 +838,40 @@ export default function App() {
     const allDone=done===total&&total>0;
     return(
       <div style={base}>
-        <div style={{maxWidth:520,margin:"0 auto",padding:"50px 16px",textAlign:"center"}}>
-          <div style={{fontSize:60,marginBottom:14}}>⏳</div>
-          <h1 style={{fontSize:26,fontWeight:900,color:T.tealDark,margin:"0 0 6px"}}>Waiting for everyone…</h1>
-          <p style={{color:T.gray500,marginBottom:28}}>{done} of {total} submitted</p>
-          <div style={card({padding:22,textAlign:"left"})}>
+        <div style={{maxWidth:700,margin:"0 auto",padding:"30px 16px 60px"}}>
+          <Topbar/>
+          <div style={{textAlign:"center",marginBottom:24}}>
+            <div style={{fontSize:50,marginBottom:10}}>⏳</div>
+            <h1 style={{fontSize:24,fontWeight:900,color:T.tealDark,margin:"0 0 6px"}}>Waiting for everyone…</h1>
+            <p style={{color:T.gray500}}>{done} of {total} submitted their scores</p>
+          </div>
+          <div style={card({padding:20,marginBottom:16})}>
             {parts.map(p=>(
               <div key={p.name} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 0",borderBottom:`1px solid ${T.gray100}`}}>
                 <div style={{width:30,height:30,borderRadius:8,background:p.submitted?T.teal:T.gray100,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:p.submitted?"#fff":T.gray300}}>{p.submitted?"✓":"○"}</div>
                 <span style={{fontWeight:600,fontSize:14,color:p.submitted?T.tealDark:T.gray500}}>{p.name}</span>
-                <span style={{marginLeft:"auto",fontSize:12,fontWeight:700,color:p.submitted?T.teal:T.gray300}}>{p.submitted?"Submitted":"In progress…"}</span>
+                <span style={{marginLeft:"auto",fontSize:12,fontWeight:700,color:p.submitted?T.teal:T.gray300}}>{p.submitted?"Scores submitted":"Filling in…"}</span>
               </div>
             ))}
           </div>
+          {/* Show board in waiting too */}
+          <div style={card({padding:20,marginBottom:16})}>
+            <h2 style={{fontSize:15,fontWeight:800,color:T.tealDark,marginTop:0,marginBottom:12}}>🗒️ Team Board (live)</h2>
+            <PostItBoard
+              cards={boardCards} myId={myId} myName={myName}
+              onAddCard={handleAddCard} onMoveCard={handleMoveCard}
+              onReact={handleReact} onAddAction={()=>{}}
+              revealed={false}/>
+          </div>
           {isHost&&(
             <button onClick={revealResults}
-              style={{marginTop:20,width:"100%",background:allDone?T.orange:T.gray300,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:15,cursor:allDone?"pointer":"default",opacity:allDone?1:.7}}
+              style={{width:"100%",background:allDone?T.orange:T.gray300,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:15,cursor:allDone?"pointer":"default",opacity:allDone?1:.7,marginBottom:10}}
               disabled={!allDone}>
-              {allDone?"🎉 Reveal Results!":`Waiting for ${total-done} more…`}
+              {allDone?"🎉 Reveal Results!":`Waiting for ${total-done} more score${total-done!==1?"s":""}…`}
             </button>
           )}
-          {!isHost&&<p style={{color:T.gray300,marginTop:18,fontSize:13}}>The host will reveal results when everyone is done.</p>}
-          <button onClick={()=>setView("input")} style={{marginTop:10,width:"100%",background:"none",color:T.gray500,border:`1.5px solid ${T.gray100}`,borderRadius:14,padding:"11px 0",fontWeight:600,fontSize:14,cursor:"pointer"}}>✏️ Edit My Answers</button>
+          {!isHost&&<p style={{color:T.gray300,textAlign:"center",fontSize:13}}>The host will reveal scores when everyone is done.</p>}
+          <button onClick={()=>setView("input")} style={{width:"100%",background:"none",color:T.gray500,border:`1.5px solid ${T.gray100}`,borderRadius:14,padding:"11px 0",fontWeight:600,fontSize:14,cursor:"pointer"}}>✏️ Edit My Scores</button>
         </div>
       </div>
     );
@@ -922,8 +879,7 @@ export default function App() {
 
   if(view==="board"&&room){
     const questions=room.questions||DEFAULT_QUESTIONS;
-    const boardEntries=room.boardEntries||[];
-    const sorted=[...boardEntries].sort((a,b)=>totalReactions(b)-totalReactions(a));
+    const sorted=[...boardCards].sort((a,b)=>totalReactions(b)-totalReactions(a));
     return(
       <div style={base}>
         <div style={{background:`linear-gradient(135deg,${T.tealDark},${T.teal})`,padding:"14px 24px",display:"flex",alignItems:"center",gap:14,boxShadow:`0 4px 20px ${T.teal}40`}}>
@@ -935,7 +891,7 @@ export default function App() {
             </div>
             <div style={{color:T.tealLight,fontSize:12}}>Room {room.id}{room.teamName?` · ${room.teamName}`:""} · {Object.values(room.participants||{}).filter(p=>p.submitted).length} participants</div>
           </div>
-          <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+          <div style={{marginLeft:"auto"}}>
             <button onClick={()=>exportPDF(room)} style={{background:T.orange,color:"#fff",border:"none",borderRadius:12,padding:"9px 18px",fontWeight:700,fontSize:13,cursor:"pointer"}}>📥 PDF</button>
           </div>
         </div>
@@ -947,18 +903,13 @@ export default function App() {
           <div style={card({padding:20})}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
               <h2 style={{fontSize:16,fontWeight:800,color:T.tealDark,margin:0}}>🗒️ Team Board</h2>
-              <span style={{fontSize:12,color:T.gray300}}>React to cards · Double-click to add action</span>
+              <span style={{fontSize:12,color:T.gray300}}>Drag cards · React with emojis · Double-click to add action</span>
             </div>
             <PostItBoard
-              cards={sorted}
-              myId={myId} myName={myName}
-              onAddCard={()=>{}}
-              onMoveCard={handleMoveCard}
-              onReact={handleReact}
-              onAddAction={handleAddAction}
-              revealed={true}
-              readOnly={true}
-            />
+              cards={sorted} myId={myId} myName={myName}
+              onAddCard={()=>{}} onMoveCard={handleMoveCard}
+              onReact={handleReact} onAddAction={handleAddAction}
+              revealed={true}/>
           </div>
         </div>
       </div>
