@@ -29,7 +29,7 @@ export async function getAllRooms(adminUid) {
   const s = await get(ref(db,"rooms"));
   if(!s.exists()) return [];
   return Object.values(s.val())
-    .filter(r => r.createdBy === adminUid)
+    .filter(r => !r.createdBy || r.createdBy === adminUid)
     .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
 }
 
@@ -43,7 +43,7 @@ export async function getAllTeams(adminUid) {
   if(!s.exists()) return [];
   return Object.entries(s.val())
     .map(([id,t])=>({id,...t}))
-    .filter(t => t.createdBy === adminUid)
+    .filter(t => !t.createdBy || t.createdBy === adminUid)
     .sort((a,b)=>(a.name||"").localeCompare(b.name||""));
 }
 

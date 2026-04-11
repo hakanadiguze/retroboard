@@ -340,22 +340,16 @@ function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed })
         </div>
       )}
 
-      {/* Action hint — revealed only */}
+      {/* Action hint — one clean line, always shown when revealed and no actions yet */}
       {revealed&&!(card.actions||[]).length&&!showAction&&(
-        <div style={{fontSize:9,color:T.gray300,marginTop:4,textAlign:"center",letterSpacing:".2px"}}>
+        <div style={{fontSize:9,color:`${c}90`,marginTop:4,textAlign:"center",fontStyle:"italic"}}>
           ✦ double-click to add action
         </div>
       )}
-
       {rxTotal>0&&(
         <div style={{position:"absolute",top:-8,right:-8,background:c,color:"#fff",borderRadius:"50%",width:20,height:20,
           display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,boxShadow:"0 2px 4px rgba(0,0,0,.2)"}}>
           {rxTotal}
-        </div>
-      )}
-      {revealed&&(
-        <div style={{position:"absolute",bottom:4,right:6,fontSize:9,color:`${c}90`,fontWeight:700,pointerEvents:"none"}}>
-          ⚡ dbl-click
         </div>
       )}
     </div>
@@ -372,8 +366,8 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
   const [newCol,  setNewCol]  = useState("Continue");
 
   const sorted = [...cards].sort((a,b)=>totalReactions(a)-totalReactions(b));
-  const BOARD_W = Math.max(800, ...cards.map(c=>(c.x||0)+200));
-  const BOARD_H = Math.max(600, ...cards.map(c=>(c.y||0)+260));
+  const BOARD_W = cards.length>0 ? Math.max(600, ...cards.map(c=>(c.x||0)+200)) : 600;
+  const BOARD_H = cards.length>0 ? Math.max(500, ...cards.map(c=>(c.y||0)+260)) : 500;
 
   function openModal(x,y){ setModal({x,y}); setNewText(""); setNewCol("Continue"); }
 
@@ -431,14 +425,16 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
         {revealed&&<span style={{fontSize:11,color:T.gray500,marginLeft:"auto"}}>Double-click a card to add an action</span>}
       </div>
 
-      {/* Board — scrollable both axes */}
-      <div style={{overflowX:"auto",overflowY:"auto",borderRadius:16,border:`1.5px solid ${T.gray100}`}}>
+      {/* Board — scrollable when cards exceed view */}
+      <div style={{overflowX:"auto",overflowY:"auto",borderRadius:16,border:`1.5px solid ${T.gray100}`,width:"100%"}}>
       <div ref={boardRef} className="board-bg"
         onDoubleClick={handleBoardDblClick}
         onDragOver={e=>e.preventDefault()}
         onDrop={handleDrop}
         style={{
-          position:"relative",width:BOARD_W,height:BOARD_H,
+          position:"relative",
+          width:Math.max(BOARD_W, 500),
+          height:BOARD_H,
           background:"repeating-linear-gradient(0deg,transparent,transparent 24px,#e0e8e840 24px,#e0e8e840 25px),repeating-linear-gradient(90deg,transparent,transparent 24px,#e0e8e840 24px,#e0e8e840 25px)",
           backgroundColor:"#f0f6f6",flexShrink:0,
         }}>
