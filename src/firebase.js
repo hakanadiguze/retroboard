@@ -52,6 +52,10 @@ export async function deleteTeam(id) {
   await remove(ref(db,`teams/${id}`));
 }
 
+export async function deleteRoom(id) {
+  await remove(ref(db,`rooms/${id}`));
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export function signInWithGoogle() { return signInWithPopup(auth, googleProvider); }
 export function signOutUser()      { return signOut(auth); }
