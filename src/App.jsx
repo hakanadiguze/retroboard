@@ -116,14 +116,17 @@ async function exportPDF(room) {
       // Estimate card height based on content
       doc.setFontSize(8);
       const textLines=doc.splitTextToSize(card.text||"",CARD_W-6);
-      const actionLines=(card.actions||[]).flatMap(a=>doc.splitTextToSize("⚡ "+a,CARD_W-8));
-      const rxText=totalReactions(card)>0
-        ? REACTIONS.filter(r=>card.reactions?.[r]&&Object.keys(card.reactions[r]).length>0)
-            .map(r=>`${r}${Object.keys(card.reactions[r]).length}`).join(" ")
-        : "";
+      // Use text labels instead of emojis (jsPDF helvetica doesn't support emoji)
+      const actionLines=(card.actions||[]).flatMap(a=>doc.splitTextToSize("* "+a,CARD_W-8));
+      // Reaction summary as text: "+1:3 -1:1 <3:2" etc.
+      const RX_LABELS={"👍":"+1","👎":"-1","❤️":"<3","🔥":"hot","💡":"idea"};
+      const rxParts=Object.entries(card.reactions||{})
+        .map(([emoji,voters])=>{ const n=Object.keys(voters||{}).length; return n>0?`${RX_LABELS[emoji]||"?"}:${n}`:null; })
+        .filter(Boolean);
+      const rxText=rxParts.join("  ");
       const CARD_H = CARD_H_BASE
         + Math.max(0,(textLines.length-2)*4)
-        + (actionLines.length>0 ? 4+actionLines.length*4 : 0)
+        + (actionLines.length>0 ? 6+actionLines.length*4 : 0)
         + (rxText ? 5 : 0);
 
       if(rowStartY+CARD_H>275){
@@ -906,7 +909,7 @@ export default function App() {
     const allScored=questions.every(q=>scores[q.id]>0);
     return (
       <div style={base}>
-        <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 16px 60px"}}>
+        <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px 60px"}}>
           <Topbar/>
           {room&&(
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
@@ -958,39 +961,43 @@ export default function App() {
     const allDone=done===total&&total>0;
     return(
       <div style={base}>
-        <div style={{maxWidth:700,margin:"0 auto",padding:"30px 16px 60px"}}>
+        <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px 60px"}}>
           <Topbar/>
-          <div style={{textAlign:"center",marginBottom:24}}>
-            <div style={{fontSize:50,marginBottom:10}}>⏳</div>
-            <h1 style={{fontSize:24,fontWeight:900,color:T.tealDark,margin:"0 0 6px"}}>Waiting for everyone…</h1>
-            <p style={{color:T.gray500}}>{done} of {total} submitted their scores</p>
-          </div>
-          <div style={card({padding:20,marginBottom:16})}>
-            {parts.map(p=>(
-              <div key={p.name} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 0",borderBottom:`1px solid ${T.gray100}`}}>
-                <div style={{width:30,height:30,borderRadius:8,background:p.submitted?T.teal:T.gray100,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:p.submitted?"#fff":T.gray300}}>{p.submitted?"✓":"○"}</div>
-                <span style={{fontWeight:600,fontSize:14,color:p.submitted?T.tealDark:T.gray500}}>{p.name}</span>
-                <span style={{marginLeft:"auto",fontSize:12,fontWeight:700,color:p.submitted?T.teal:T.gray300}}>{p.submitted?"Scores submitted":"Filling in…"}</span>
+          <div style={{display:"flex",gap:16,alignItems:"flex-start",flexWrap:"wrap"}}>
+            {/* Left: status + reveal */}
+            <div style={{flex:"0 0 280px",minWidth:240}}>
+              <div style={card({padding:20,marginBottom:12})}>
+                <h2 style={{fontSize:15,fontWeight:800,color:T.tealDark,marginTop:0,marginBottom:12}}>
+                  ⏳ {done} / {total} submitted
+                </h2>
+                {parts.map(p=>(
+                  <div key={p.name} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${T.gray100}`}}>
+                    <div style={{width:26,height:26,borderRadius:7,background:p.submitted?T.teal:T.gray100,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:p.submitted?"#fff":T.gray300}}>{p.submitted?"✓":"○"}</div>
+                    <span style={{fontWeight:600,fontSize:13,color:p.submitted?T.tealDark:T.gray500}}>{p.name}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+              {isHost&&(
+                <button onClick={revealResults}
+                  style={{width:"100%",background:T.orange,color:"#fff",border:"none",borderRadius:14,padding:"13px 0",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:8}}>
+                  🎉 Reveal Results
+                </button>
+              )}
+              {!isHost&&<p style={{color:T.gray300,textAlign:"center",fontSize:13}}>Host will reveal when ready.</p>}
+              <button onClick={()=>setView("input")} style={{width:"100%",background:"none",color:T.gray500,border:`1.5px solid ${T.gray100}`,borderRadius:14,padding:"11px 0",fontWeight:600,fontSize:14,cursor:"pointer"}}>✏️ Edit My Scores</button>
+            </div>
+            {/* Right: live board */}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={card({padding:20})}>
+                <h2 style={{fontSize:15,fontWeight:800,color:T.tealDark,marginTop:0,marginBottom:12}}>🗒️ Team Board (live)</h2>
+                <PostItBoard
+                  cards={boardCards} myId={myId} myName={myName}
+                  onAddCard={handleAddCard} onMoveCard={handleMoveCard}
+                  onReact={handleReact} onAddAction={()=>{}}
+                  revealed={false}/>
+              </div>
+            </div>
           </div>
-          {/* Show board in waiting too */}
-          <div style={card({padding:20,marginBottom:16})}>
-            <h2 style={{fontSize:15,fontWeight:800,color:T.tealDark,marginTop:0,marginBottom:12}}>🗒️ Team Board (live)</h2>
-            <PostItBoard
-              cards={boardCards} myId={myId} myName={myName}
-              onAddCard={handleAddCard} onMoveCard={handleMoveCard}
-              onReact={handleReact} onAddAction={()=>{}}
-              revealed={false}/>
-          </div>
-          {isHost&&(
-            <button onClick={revealResults}
-              style={{width:"100%",background:T.orange,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:10}}>
-              🎉 Reveal Results
-            </button>
-          )}
-          {!isHost&&<p style={{color:T.gray300,textAlign:"center",fontSize:13}}>The host will reveal scores when ready.</p>}
-          <button onClick={()=>setView("input")} style={{width:"100%",background:"none",color:T.gray500,border:`1.5px solid ${T.gray100}`,borderRadius:14,padding:"11px 0",fontWeight:600,fontSize:14,cursor:"pointer"}}>✏️ Edit My Scores</button>
         </div>
       </div>
     );
