@@ -663,6 +663,7 @@ export default function App() {
   const [scores,         setScores]         = useState({});
   const [localCards,     setLocalCards]     = useState([]); // pre-submit cards
   const [setupName,      setSetupName]      = useState("");
+  const [submitError,    setSubmitError]    = useState("");
   const [adminUser,      setAdminUser]      = useState(null);
   const [teams,          setTeams]          = useState([]);
   const skipHashRef = useRef(false);
@@ -829,7 +830,6 @@ export default function App() {
     const questions=room?.questions||DEFAULT_QUESTIONS;
     const allow3=room?.allow3??false;
     const allScored=questions.every(q=>scores[q.id]>0);
-    const [err,setErr]=useState("");
     return (
       <div style={base}>
         <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 16px 60px"}}>
@@ -875,8 +875,8 @@ export default function App() {
           </div>
           {/* Submit */}
           <div>
-            {err&&<div style={{color:T.orange,fontWeight:600,marginBottom:10,textAlign:"center",fontSize:14}}>{err}</div>}
-            <button onClick={()=>submitAnswers(setErr)} disabled={!allScored}
+            {submitError&&<div style={{color:T.orange,fontWeight:600,marginBottom:10,textAlign:"center",fontSize:14}}>{submitError}</div>}
+            <button onClick={()=>submitAnswers(setSubmitError)} disabled={!allScored}
               style={{width:"100%",background:room?.participants?.[myId]?.submitted?T.teal:T.orange,color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:16,cursor:allScored?"pointer":"default",opacity:allScored?1:.5}}>
               {room?.participants?.[myId]?.submitted?"🔄 Update My Answers":"✅ Submit My Answers"}
             </button>
