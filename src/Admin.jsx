@@ -375,7 +375,13 @@ function SessionRow({ room, onView, onDelete, onRejoin, onActions }) {
       {!room.revealed&&(
         <button onClick={()=>onRejoin(room.id)}
           style={{flexShrink:0,background:T.tealBg,color:T.tealDark,border:`1px solid ${T.teal}40`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>
-          🔗 Rejoin
+          🔗 Join Board
+        </button>
+      )}
+      {room.revealed&&(
+        <button onClick={()=>onRejoin(room.id)}
+          style={{flexShrink:0,background:"#EFF6FF",color:"#60A5FA",border:"1px solid #60A5FA40",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>
+          👁 View Board
         </button>
       )}
       <button onClick={()=>onView(room)}

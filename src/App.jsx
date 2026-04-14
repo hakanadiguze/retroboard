@@ -923,6 +923,12 @@ export default function App() {
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
             {isHost&&<button onClick={copyLink} style={{...btn(T.gray100,T.gray500,{fontSize:12,padding:"7px 12px"})}}>{copied?"✅ Copied!":"🔗 Copy Link"}</button>}
+            {adminUser&&(
+              <button onClick={()=>{skipHashRef.current=true;window.location.hash="admin";setView("admin");}}
+                style={{...btn(T.tealBg,T.tealDark,{fontSize:12,padding:"7px 12px"})}}>
+                ← Admin
+              </button>
+            )}
             <div style={{background:T.tealBg,borderRadius:20,padding:"5px 12px",fontSize:12,fontWeight:700,color:T.tealDark}}>👤 {myName}</div>
           </div>
         </div>
@@ -1074,7 +1080,13 @@ export default function App() {
             </div>
             <div style={{color:T.tealLight,fontSize:12}}>Room {room.id}{room.teamName?` · ${room.teamName}`:""} · {Object.values(room.participants||{}).filter(p=>p.submitted).length} participants</div>
           </div>
-          <div style={{marginLeft:"auto"}}>
+          <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+            {adminUser&&(
+              <button onClick={()=>{skipHashRef.current=true;window.location.hash="admin";setView("admin");}}
+                style={{background:"rgba(255,255,255,.15)",color:"#fff",border:"1px solid rgba(255,255,255,.3)",borderRadius:12,padding:"9px 14px",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                ← Admin Panel
+              </button>
+            )}
             <button onClick={()=>exportPDF(room)} style={{background:T.orange,color:"#fff",border:"none",borderRadius:12,padding:"9px 18px",fontWeight:700,fontSize:13,cursor:"pointer"}}>📥 PDF</button>
           </div>
         </div>
