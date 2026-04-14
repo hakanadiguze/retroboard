@@ -229,11 +229,110 @@ function TeamModal({ team, onSave, onClose }) {
   );
 }
 
-// ─── SessionRow ───────────────────────────────────────────────────────────────
-function SessionRow({ room, onView, onDelete, onRejoin }) {
-  const parts = Object.values(room.participants||{}).filter(p=>p.submitted);
+// ─── ActionsModal ─────────────────────────────────────────────────────────────
+function ActionsModal({ room, onClose, onToggleAction }) {
+  const allActions = (room.boardEntries||[]).flatMap(card=>
+    (card.actions||[]).filter(a=>typeof a==="object").map(a=>({...a, cardText:card.text, cardColumn:card.column, cardId:card.id}))
+  );
+  const total  = allActions.length;
+  const done   = allActions.filter(a=>a.status==="done").length;
+  const COL_C  = { Stop:"#FF6B6B", Start:"#34D399", Continue:"#60A5FA" };
+
+  function fmtDate(iso){
+    if(!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+  }
+
   return (
-    <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:T.white,borderRadius:12,marginBottom:6,
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:100,overflowY:"auto",padding:"24px 16px"}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{maxWidth:860,margin:"0 auto",background:"#fff",borderRadius:20,boxShadow:"0 20px 60px rgba(0,0,0,.2)",overflow:"hidden"}}>
+        {/* Header */}
+        <div style={{background:`linear-gradient(135deg,#076F6F,#0D9E9E)`,padding:"18px 24px",display:"flex",alignItems:"center",gap:16}}>
+          <div>
+            <div style={{color:"#fff",fontWeight:900,fontSize:18}}>
+              ⚡ Actions — {room.sessionName||room.id}
+            </div>
+            <div style={{color:"#7FDADA",fontSize:12,marginTop:2}}>
+              {done}/{total} completed · {room.teamName||"No team"}
+            </div>
+          </div>
+          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:10}}>
+            <span style={{background:done===total&&total>0?"#10B981":"#F59E0B",color:"#fff",borderRadius:8,padding:"4px 12px",fontWeight:800,fontSize:13}}>
+              {done===total&&total>0?"✅ All Done":`${done}/${total} Done`}
+            </span>
+            <button onClick={onClose} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",borderRadius:8,padding:"6px 14px",cursor:"pointer",fontWeight:700,fontSize:14}}>✕</button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div style={{padding:24}}>
+          {allActions.length===0?(
+            <div style={{textAlign:"center",padding:"40px 0",color:"#9BB8B8",fontSize:15}}>No actions yet</div>
+          ):(
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:"#E6F7F7"}}>
+                  {["Action","Card","Assignee","Due Date","Created","Completed","Status"].map(h=>(
+                    <th key={h} style={{padding:"10px 12px",textAlign:"left",fontSize:11,fontWeight:800,color:"#076F6F",whiteSpace:"nowrap"}}>{h}</th>
+                  ))}
+                  <th style={{padding:"10px 12px"}}/>
+                </tr>
+              </thead>
+              <tbody>
+                {allActions.map((a,i)=>{
+                  const isDone=a.status==="done";
+                  const cc=COL_C[a.cardColumn]||"#aaa";
+                  return(
+                    <tr key={a.id||i} style={{background:i%2===0?"#F8FAFA":"#fff",borderBottom:"1px solid #DDE8E8"}}>
+                      <td style={{padding:"10px 12px",fontSize:13,color:isDone?"#9BB8B8":"#0A2020",textDecoration:isDone?"line-through":"none",maxWidth:200}}>
+                        {a.text}
+                      </td>
+                      <td style={{padding:"10px 12px"}}>
+                        <span style={{background:`${cc}20`,color:cc,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
+                          {a.cardColumn}
+                        </span>
+                        <div style={{fontSize:10,color:"#9BB8B8",marginTop:2,maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.cardText}</div>
+                      </td>
+                      <td style={{padding:"10px 12px",fontSize:12,color:"#5A7878"}}>{a.assignee||"—"}</td>
+                      <td style={{padding:"10px 12px",fontSize:12,color:a.dueDate&&!isDone&&new Date(a.dueDate)<new Date()?"#EF4444":"#5A7878",fontWeight:a.dueDate&&!isDone&&new Date(a.dueDate)<new Date()?700:400}}>
+                        {a.dueDate||"—"}
+                      </td>
+                      <td style={{padding:"10px 12px",fontSize:11,color:"#9BB8B8",whiteSpace:"nowrap"}}>{fmtDate(a.createdAt)}</td>
+                      <td style={{padding:"10px 12px",fontSize:11,color:"#9BB8B8",whiteSpace:"nowrap"}}>{fmtDate(a.completedAt)}</td>
+                      <td style={{padding:"10px 12px"}}>
+                        <span style={{background:isDone?"#D1FAE5":"#FEF3C7",color:isDone?"#065F46":"#92400E",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>
+                          {isDone?"Done":"Open"}
+                        </span>
+                      </td>
+                      <td style={{padding:"10px 8px",whiteSpace:"nowrap"}}>
+                        <button onClick={()=>onToggleAction(room.id, a.cardId, a.id)}
+                          style={{background:isDone?"#FEF3C7":"#D1FAE5",color:isDone?"#92400E":"#065F46",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontWeight:700,fontSize:11}}>
+                          {isDone?"Reopen":"Complete"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SessionRow ───────────────────────────────────────────────────────────────
+function SessionRow({ room, onView, onDelete, onRejoin, onActions }) {
+  const parts = Object.values(room.participants||{}).filter(p=>p.submitted);
+  const allActions=(room.boardEntries||[]).flatMap(c=>(c.actions||[]).filter(a=>typeof a==="object"));
+  const totalAct=allActions.length;
+  const doneAct=allActions.filter(a=>a.status==="done").length;
+  const allDone=totalAct>0&&doneAct===totalAct;
+
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:8,padding:"12px 16px",background:T.white,borderRadius:12,marginBottom:6,
       border:"1.5px solid transparent",transition:"border .15s"}}
       onMouseEnter={e=>e.currentTarget.style.borderColor=`${T.teal}40`}
       onMouseLeave={e=>e.currentTarget.style.borderColor="transparent"}>
@@ -252,6 +351,17 @@ function SessionRow({ room, onView, onDelete, onRejoin }) {
           Host: {room.hostName} · {fmt(room.createdAt)} · {parts.length} participant{parts.length!==1?"s":""}
         </div>
       </div>
+      {/* Actions button */}
+      {totalAct>0&&(
+        <button onClick={e=>{e.stopPropagation();onActions(room);}}
+          style={{flexShrink:0,background:allDone?"#D1FAE5":"#FEF3C7",
+            color:allDone?"#065F46":"#92400E",
+            border:`1px solid ${allDone?"#10B98140":"#F59E0B40"}`,
+            borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:11,
+            display:"flex",alignItems:"center",gap:5}}>
+          ⚡ {doneAct}/{totalAct}
+        </button>
+      )}
       {!room.revealed&&(
         <button onClick={()=>onRejoin(room.id)}
           style={{flexShrink:0,background:T.tealBg,color:T.tealDark,border:`1px solid ${T.teal}40`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>
@@ -271,7 +381,7 @@ function SessionRow({ room, onView, onDelete, onRejoin }) {
 }
 
 // ─── TeamSection ──────────────────────────────────────────────────────────────
-function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDeleteRoom, onRejoinRoom }) {
+function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDeleteRoom, onRejoinRoom, onActionsRoom }) {
   const [open, setOpen] = useState(true);
   const teamRooms = rooms.filter(r=>r.teamId===team.id);
 
@@ -297,7 +407,7 @@ function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDele
         <div style={{padding:"10px 14px 14px"}}>
           {teamRooms.length===0
             ? <div style={{textAlign:"center",color:T.gray300,fontSize:13,padding:"16px 0"}}>No sessions yet</div>
-            : teamRooms.map(r=><SessionRow key={r.id} room={r} onView={onViewRoom} onDelete={onDeleteRoom} onRejoin={onRejoinRoom}/>)
+            : teamRooms.map(r=><SessionRow key={r.id} room={r} onView={onViewRoom} onDelete={onDeleteRoom} onRejoin={onRejoinRoom} onActions={onActionsRoom}/>)
           }
         </div>
       )}
@@ -311,8 +421,9 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
   const [teams,        setTeams]        = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [selectedRoom, setSelectedRoom] = useState(null);
-  const [teamModal,    setTeamModal]    = useState(null); // null | "new" | team obj
-  const [confirm,      setConfirm]      = useState(null); // null | { message, onConfirm }
+  const [actionsRoom,  setActionsRoom]  = useState(null);
+  const [teamModal,    setTeamModal]    = useState(null);
+  const [confirm,      setConfirm]      = useState(null);
   const [search,       setSearch]       = useState("");
 
   const loadData = useCallback(async ()=>{
@@ -322,6 +433,31 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
   },[user.uid]);
 
   useEffect(()=>{ loadData(); },[loadData]);
+
+  async function handleToggleAction(roomId, cardId, actionId){
+    const { getDatabase, ref, get, update } = await import("firebase/database");
+    const { db } = await import("./firebase.js");
+    const snap = await get(ref(db,`rooms/${roomId}`));
+    if(!snap.exists()) return;
+    const r = snap.val();
+    const updated=(r.boardEntries||[]).map(c=>{
+      if(c.id!==cardId) return c;
+      const actions=(c.actions||[]).map(a=>{
+        if(typeof a!=="object"||a.id!==actionId) return a;
+        return a.status==="done"
+          ? {...a,status:"open",completedAt:null}
+          : {...a,status:"done",completedAt:new Date().toISOString()};
+      });
+      return {...c,actions};
+    });
+    await update(ref(db,`rooms/${roomId}`),{boardEntries:updated});
+    // Refresh rooms and actionsRoom
+    await loadData();
+    setActionsRoom(prev=>{
+      if(!prev||prev.id!==roomId) return prev;
+      return {...prev,boardEntries:updated};
+    });
+  }
 
   // ── Team CRUD
   async function handleSaveTeam(team) {
@@ -436,7 +572,7 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
                   <TeamSection key={team.id} team={team} rooms={rooms}
                     onEditTeam={handleEditTeam} onDeleteTeam={handleDeleteTeam}
                     onViewRoom={setSelectedRoom} onDeleteRoom={handleDeleteRoom}
-                    onRejoinRoom={onRejoinSession}/>
+                    onRejoinRoom={onRejoinSession} onActionsRoom={setActionsRoom}/>
                 ))}
               </div>
             )}
@@ -447,7 +583,7 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
                 <div style={{fontWeight:800,fontSize:13,color:T.gray500,marginBottom:10,letterSpacing:".5px"}}>SESSIONS WITHOUT A TEAM</div>
                 <div style={{background:T.offWhite,borderRadius:16,padding:"10px 14px 14px",border:`1.5px solid ${T.gray100}`}}>
                   {filteredUnassigned.map(r=>(
-                    <SessionRow key={r.id} room={r} onView={setSelectedRoom} onDelete={handleDeleteRoom} onRejoin={onRejoinSession}/>
+                    <SessionRow key={r.id} room={r} onView={setSelectedRoom} onDelete={handleDeleteRoom} onRejoin={onRejoinSession} onActions={setActionsRoom}/>
                   ))}
                 </div>
               </div>
@@ -464,6 +600,7 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
 
       {/* Modals */}
       {selectedRoom&&<RetroDetail room={selectedRoom} onClose={()=>setSelectedRoom(null)}/>}
+      {actionsRoom&&<ActionsModal room={actionsRoom} onClose={()=>setActionsRoom(null)} onToggleAction={handleToggleAction}/>}
 
       {teamModal&&(
         <TeamModal

@@ -274,14 +274,26 @@ function ScoresSummary({ participants, questions }) {
 function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed }) {
   const [showAction, setShowAction] = useState(false);
   const [actText,    setActText]    = useState("");
+  const [assignee,   setAssignee]   = useState("");
+  const [dueDate,    setDueDate]    = useState("");
   const c  = COL_COLORS[card.column]||"#aaa";
   const bg = COL_BG[card.column]||"#fffde7";
   const rxTotal = totalReactions(card);
+  const actions = card.actions||[];
+  const openCount = actions.filter(a=>typeof a==="object"?a.status!=="done":true).length;
 
   function submitAction() {
     if(!actText.trim()) return;
-    onAddAction(card.id, actText.trim());
-    setActText(""); setShowAction(false);
+    onAddAction(card.id, {
+      id: Math.random().toString(36).slice(2,8),
+      text: actText.trim(),
+      assignee: assignee.trim(),
+      dueDate: dueDate,
+      status: "open",
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+    });
+    setActText(""); setAssignee(""); setDueDate(""); setShowAction(false);
   }
 
   return (
@@ -290,7 +302,7 @@ function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed })
       onDragStart={e=>onDragStart(e,card)}
       onDoubleClick={e=>{ e.stopPropagation(); if(revealed) setShowAction(v=>!v); }}
       style={{
-        position:"absolute", left:card.x||100, top:card.y||100, width:180,
+        position:"absolute", left:card.x||100, top:card.y||100, width:190,
         background:bg, borderRadius:4,
         boxShadow:`3px 3px 10px rgba(0,0,0,.18), inset 0 -3px 0 ${c}60`,
         borderTop:`4px solid ${c}`, padding:"10px 12px 8px",
@@ -303,7 +315,7 @@ function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed })
       </div>
       <div style={{fontSize:13,color:"#333",lineHeight:1.4,marginBottom:8,wordBreak:"break-word"}}>{card.text}</div>
 
-      {/* Reactions — always visible */}
+      {/* Reactions */}
       <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:4}}>
         {REACTIONS.map(r=>{
           const voters=card.reactions?.[r]||{};
@@ -321,30 +333,55 @@ function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed })
       </div>
 
       {/* Actions list */}
-      {(card.actions||[]).length>0&&(
+      {actions.length>0&&(
         <div style={{borderTop:`1px solid ${c}30`,marginTop:4,paddingTop:4}}>
-          {(card.actions||[]).map((a,i)=>(
-            <div key={i} style={{fontSize:10,color:T.gray700}}>⚡ {a}</div>
-          ))}
+          {actions.map((a,i)=>{
+            const isDone = typeof a==="object" ? a.status==="done" : false;
+            const text   = typeof a==="object" ? a.text : a;
+            const who    = typeof a==="object" && a.assignee ? a.assignee : null;
+            const due    = typeof a==="object" && a.dueDate  ? a.dueDate  : null;
+            return(
+              <div key={i} style={{fontSize:10,color:isDone?T.gray300:T.gray700,marginBottom:3,
+                textDecoration:isDone?"line-through":"none",display:"flex",alignItems:"flex-start",gap:3}}>
+                <span style={{color:isDone?"#10B981":c,flexShrink:0}}>{isDone?"✓":"⚡"}</span>
+                <span>
+                  {text}
+                  {who&&<span style={{color:T.gray300}}> @{who}</span>}
+                  {due&&<span style={{color:T.gray300}}> · {due}</span>}
+                </span>
+              </div>
+            );
+          })}
+          {actions.length>0&&(
+            <div style={{fontSize:9,color:openCount===0?"#10B981":c,fontWeight:700,marginTop:3}}>
+              {openCount===0?"✅ All done":`${actions.length-openCount}/${actions.length} done`}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Add action on double-click (revealed only) */}
+      {/* Add action form */}
       {revealed&&showAction&&(
-        <div style={{marginTop:6}} onClick={e=>e.stopPropagation()}>
+        <div style={{marginTop:6,borderTop:`1px solid ${c}30`,paddingTop:6}} onClick={e=>e.stopPropagation()}>
           <input autoFocus value={actText} onChange={e=>setActText(e.target.value)}
-            onKeyDown={e=>{if(e.key==="Enter")submitAction();if(e.key==="Escape")setShowAction(false);}}
-            placeholder="Add action…"
-            style={{width:"100%",padding:"4px 8px",borderRadius:6,border:`1.5px solid ${c}`,fontSize:12,outline:"none",boxSizing:"border-box",background:"#fff"}}/>
-          <div style={{display:"flex",gap:4,marginTop:4}}>
-            <button onClick={submitAction} style={{flex:1,background:c,color:"#fff",border:"none",borderRadius:6,padding:"3px 0",cursor:"pointer",fontSize:11,fontWeight:700}}>Add</button>
-            <button onClick={()=>setShowAction(false)} style={{flex:1,background:"#eee",color:T.gray500,border:"none",borderRadius:6,padding:"3px 0",cursor:"pointer",fontSize:11}}>Cancel</button>
+            onKeyDown={e=>{if(e.key==="Escape")setShowAction(false);}}
+            placeholder="Action…"
+            style={{width:"100%",padding:"4px 8px",borderRadius:6,border:`1.5px solid ${c}`,fontSize:12,outline:"none",boxSizing:"border-box",background:"#fff",marginBottom:4}}/>
+          <input value={assignee} onChange={e=>setAssignee(e.target.value)}
+            placeholder="Assignee (optional)"
+            style={{width:"100%",padding:"4px 8px",borderRadius:6,border:`1.5px solid ${T.gray100}`,fontSize:11,outline:"none",boxSizing:"border-box",background:"#fff",marginBottom:4}}/>
+          <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
+            style={{width:"100%",padding:"4px 8px",borderRadius:6,border:`1.5px solid ${T.gray100}`,fontSize:11,outline:"none",boxSizing:"border-box",background:"#fff",marginBottom:6}}/>
+          <div style={{display:"flex",gap:4}}>
+            <button onClick={submitAction} disabled={!actText.trim()}
+              style={{flex:1,background:c,color:"#fff",border:"none",borderRadius:6,padding:"4px 0",cursor:"pointer",fontSize:11,fontWeight:700,opacity:actText.trim()?1:.5}}>Add</button>
+            <button onClick={()=>setShowAction(false)}
+              style={{flex:1,background:"#eee",color:T.gray500,border:"none",borderRadius:6,padding:"4px 0",cursor:"pointer",fontSize:11}}>Cancel</button>
           </div>
         </div>
       )}
 
-      {/* Action hint — one clean line, always shown when revealed and no actions yet */}
-      {revealed&&!(card.actions||[]).length&&!showAction&&(
+      {revealed&&!actions.length&&!showAction&&(
         <div style={{fontSize:9,color:`${c}90`,marginTop:4,textAlign:"center",fontStyle:"italic"}}>
           ✦ double-click to add action
         </div>
@@ -838,9 +875,24 @@ export default function App() {
     await update(roomRef(roomId),{boardEntries:updated});
   }
 
-  async function handleAddAction(cardId,text){
+  async function handleAddAction(cardId, actionObj){
     const r=await fbGet(roomId);
-    const updated=(r.boardEntries||[]).map(c=>c.id===cardId?{...c,actions:[...(c.actions||[]),text]}:c);
+    const updated=(r.boardEntries||[]).map(c=>c.id===cardId?{...c,actions:[...(c.actions||[]),actionObj]}:c);
+    await update(roomRef(roomId),{boardEntries:updated});
+  }
+
+  async function handleToggleAction(cardId, actionId){
+    const r=await fbGet(roomId);
+    const updated=(r.boardEntries||[]).map(c=>{
+      if(c.id!==cardId) return c;
+      const actions=(c.actions||[]).map(a=>{
+        if(typeof a!=="object"||a.id!==actionId) return a;
+        return a.status==="done"
+          ? {...a, status:"open", completedAt:null}
+          : {...a, status:"done", completedAt:new Date().toISOString()};
+      });
+      return {...c, actions};
+    });
     await update(roomRef(roomId),{boardEntries:updated});
   }
 
