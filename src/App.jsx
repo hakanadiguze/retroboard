@@ -117,7 +117,12 @@ async function exportPDF(room) {
       doc.setFontSize(8);
       const textLines=doc.splitTextToSize(card.text||"",CARD_W-6);
       // Use text labels instead of emojis (jsPDF helvetica doesn't support emoji)
-      const actionLines=(card.actions||[]).flatMap(a=>doc.splitTextToSize("* "+a,CARD_W-8));
+      const actionLines=(card.actions||[]).flatMap(a=>{
+        const text=typeof a==="object"?a.text:a;
+        const isDone=typeof a==="object"&&a.status==="done";
+        const who=typeof a==="object"&&a.assignee?` @${a.assignee}`:"";
+        return doc.splitTextToSize(`${isDone?"[done]":"*"} ${text}${who}`,CARD_W-8);
+      });
       // Reaction summary as text: "+1:3 -1:1 <3:2" etc.
       const RX_LABELS={"👍":"+1","👎":"-1","❤️":"<3","🔥":"hot","💡":"idea"};
       const rxParts=Object.entries(card.reactions||{})

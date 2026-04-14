@@ -168,9 +168,19 @@ function RetroDetail({ room, onClose }) {
                         {(card.actions||[]).length>0&&(
                           <div style={{borderTop:`1px solid ${c}30`,paddingTop:4,marginTop:4}}>
                             <div style={{fontSize:9,fontWeight:800,color:c,marginBottom:2}}>ACTIONS</div>
-                            {(card.actions||[]).map((a,i)=>(
-                              <div key={i} style={{fontSize:10,color:T.gray700}}>⚡ {a}</div>
-                            ))}
+                            {(card.actions||[]).map((a,i)=>{
+                              const text=typeof a==="object"?a.text:a;
+                              const isDone=typeof a==="object"&&a.status==="done";
+                              const who=typeof a==="object"&&a.assignee?a.assignee:null;
+                              const due=typeof a==="object"&&a.dueDate?a.dueDate:null;
+                              return(
+                                <div key={i} style={{fontSize:10,color:isDone?T.gray300:T.gray700,marginBottom:2,textDecoration:isDone?"line-through":"none"}}>
+                                  {isDone?"✓":"⚡"} {text}
+                                  {who&&<span style={{color:T.gray300}}> @{who}</span>}
+                                  {due&&<span style={{color:T.gray300}}> · {due}</span>}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
