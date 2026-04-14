@@ -3,7 +3,7 @@ import { onValue, off, update } from "firebase/database";
 import { uid, nowISO, roomRef, fbGet, fbSet, signInWithGoogle, signOutUser, onAuth, getAllTeams } from "./firebase.js";
 import AdminPanel from "./Admin.jsx";
 
-const VERSION = "v3";
+const VERSION = "v4";
 
 const T = {
   teal:"#0D9E9E", tealDark:"#076F6F", tealLight:"#7FDADA", tealBg:"#E6F7F7",

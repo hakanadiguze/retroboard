@@ -283,7 +283,7 @@ function ActionsModal({ room, onClose, onToggleAction }) {
             <table style={{width:"100%",borderCollapse:"collapse"}}>
               <thead>
                 <tr style={{background:"#E6F7F7"}}>
-                  {["Action","Card","Assignee","Due Date","Created","Completed","Status"].map(h=>(
+                  {["Action","Status","Card","Assignee","Due Date","Created","Completed"].map(h=>(
                     <th key={h} style={{padding:"10px 12px",textAlign:"left",fontSize:11,fontWeight:800,color:"#076F6F",whiteSpace:"nowrap"}}>{h}</th>
                   ))}
                   <th style={{padding:"10px 12px"}}/>
@@ -299,6 +299,11 @@ function ActionsModal({ room, onClose, onToggleAction }) {
                         {a.text}
                       </td>
                       <td style={{padding:"10px 12px"}}>
+                        <span style={{background:isDone?"#D1FAE5":"#FEF3C7",color:isDone?"#065F46":"#92400E",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>
+                          {isDone?"Done":"Open"}
+                        </span>
+                      </td>
+                      <td style={{padding:"10px 12px"}}>
                         <span style={{background:`${cc}20`,color:cc,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
                           {a.cardColumn}
                         </span>
@@ -310,11 +315,6 @@ function ActionsModal({ room, onClose, onToggleAction }) {
                       </td>
                       <td style={{padding:"10px 12px",fontSize:11,color:"#9BB8B8",whiteSpace:"nowrap"}}>{fmtDate(a.createdAt)}</td>
                       <td style={{padding:"10px 12px",fontSize:11,color:"#9BB8B8",whiteSpace:"nowrap"}}>{fmtDate(a.completedAt)}</td>
-                      <td style={{padding:"10px 12px"}}>
-                        <span style={{background:isDone?"#D1FAE5":"#FEF3C7",color:isDone?"#065F46":"#92400E",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>
-                          {isDone?"Done":"Open"}
-                        </span>
-                      </td>
                       <td style={{padding:"10px 8px",whiteSpace:"nowrap"}}>
                         <button onClick={()=>onToggleAction(room.id, a.cardId, a.id)}
                           style={{background:isDone?"#FEF3C7":"#D1FAE5",color:isDone?"#92400E":"#065F46",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontWeight:700,fontSize:11}}>
