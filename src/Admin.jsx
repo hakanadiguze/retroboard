@@ -535,7 +535,7 @@ function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDele
 }
 
 // ─── AdminPanel ───────────────────────────────────────────────────────────────
-export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
+export default function AdminPanel({ user, onNewSession, onRejoinSession, currentTheme, onOpenThemePicker }) {
   const isSuperAdmin = user.email === SUPERADMIN_EMAIL;
   const [tab,           setTab]           = useState("my");
   const [rooms,         setRooms]         = useState([]);
@@ -653,6 +653,7 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
           <button onClick={onNewSession} style={{background:T.orange,color:T.white,border:"none",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13}}>⚡ New Session</button>
           <button onClick={handleNewTeam} style={{background:"rgba(255,255,255,.15)",color:T.white,border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>➕ New Team</button>
           <button onClick={loadData} style={{background:"rgba(255,255,255,.15)",color:T.white,border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>🔄 Refresh</button>
+          {onOpenThemePicker&&<button onClick={onOpenThemePicker} style={{background:"rgba(255,255,255,.15)",color:T.white,border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>🎨 Theme</button>}
           <button onClick={signOutUser} style={{background:"rgba(255,0,0,.2)",color:T.white,border:"1px solid rgba(255,100,100,.4)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>Sign Out</button>
         </div>
       </div>
