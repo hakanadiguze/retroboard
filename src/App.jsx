@@ -1047,7 +1047,8 @@ export default function App() {
           </div>
         </div>
       </div>
-      </>;
+      </>
+    );
   }
 
   if(view==="waiting"){
@@ -1096,7 +1097,8 @@ export default function App() {
           </div>
         </div>
       </div>
-      </>;
+      </>
+    );
   }
 
   if(view==="board"&&room){
@@ -1142,7 +1144,8 @@ export default function App() {
           </div>
         </div>
       </div>
-      </>;
+      </>
+    );
   }
 
   return <><ThemeBackground themeId={themeId}/><div style={base}><div style={{padding:40,textAlign:"center",color:T.gray500}}>Loading…</div></div></>;
