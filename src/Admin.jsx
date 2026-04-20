@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getAllRooms, getAllRoomsAll, getAllTeams, saveTeam, deleteTeam, deleteRoom, signOutUser, uid, nowISO, SUPERADMIN_EMAIL } from "./firebase.js";
+import { getAllRooms, getAllRoomsAll, getAllTeams, getAllUsers, saveTeam, deleteTeam, deleteRoom, signOutUser, uid, nowISO, SUPERADMIN_EMAIL } from "./firebase.js";
 
 const T = {
   teal:"#0D9E9E", tealDark:"#076F6F", tealLight:"#7FDADA", tealBg:"#E6F7F7",
@@ -396,15 +396,113 @@ function SessionRow({ room, onView, onDelete, onRejoin, onActions }) {
   );
 }
 
+// ─── TeamActionsModal ─────────────────────────────────────────────────────────
+function TeamActionsModal({ team, rooms, onClose, onToggleAction }) {
+  const [filter, setFilter] = useState("all"); // all | open | done
+  const teamRooms = rooms.filter(r=>r.teamId===team.id);
+
+  const allActions = teamRooms.flatMap(room=>
+    (room.boardEntries||[]).flatMap(card=>
+      (card.actions||[]).filter(a=>typeof a==="object").map(a=>({
+        ...a, cardText:card.text, cardColumn:card.column, cardId:card.id,
+        roomId:room.id, sessionName:room.sessionName||room.id, roomCreatedAt:room.createdAt,
+      }))
+    )
+  );
+
+  const filtered = filter==="all" ? allActions
+    : filter==="open" ? allActions.filter(a=>a.status!=="done")
+    : allActions.filter(a=>a.status==="done");
+
+  const total=allActions.length, done=allActions.filter(a=>a.status==="done").length;
+  const COL_C = { Stop:"#FF6B6B", Start:"#34D399", Continue:"#60A5FA" };
+
+  function fmtDate(iso){ if(!iso) return "—"; return new Date(iso).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:100,overflowY:"auto",padding:"24px 16px"}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{maxWidth:960,margin:"0 auto",background:"#fff",borderRadius:20,boxShadow:"0 20px 60px rgba(0,0,0,.2)",overflow:"hidden"}}>
+        <div style={{background:`linear-gradient(135deg,#076F6F,#0D9E9E)`,padding:"18px 24px",display:"flex",alignItems:"center",gap:16}}>
+          <div>
+            <div style={{color:"#fff",fontWeight:900,fontSize:18}}>👥 Team Actions — {team.name}</div>
+            <div style={{color:"#7FDADA",fontSize:12,marginTop:2}}>
+              {done}/{total} completed · {teamRooms.length} session{teamRooms.length!==1?"s":""}
+            </div>
+          </div>
+          <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+            {["all","open","done"].map(f=>(
+              <button key={f} onClick={()=>setFilter(f)}
+                style={{background:filter===f?"rgba(255,255,255,.3)":"rgba(255,255,255,.1)",color:"#fff",border:"1px solid rgba(255,255,255,.3)",borderRadius:8,padding:"5px 12px",cursor:"pointer",fontWeight:filter===f?800:500,fontSize:12}}>
+                {f==="all"?`All (${total})`:f==="open"?`Open (${total-done})`:`Done (${done})`}
+              </button>
+            ))}
+            <button onClick={onClose} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",borderRadius:8,padding:"6px 14px",cursor:"pointer",fontWeight:700,fontSize:14}}>✕</button>
+          </div>
+        </div>
+        <div style={{padding:24}}>
+          {filtered.length===0 ? (
+            <div style={{textAlign:"center",padding:"40px 0",color:"#9BB8B8",fontSize:15}}>No actions</div>
+          ) : (
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:"#E6F7F7"}}>
+                  {["Action","Status","Session","Card","Assignee","Due Date","Created","Completed"].map(h=>(
+                    <th key={h} style={{padding:"9px 10px",textAlign:"left",fontSize:11,fontWeight:800,color:"#076F6F",whiteSpace:"nowrap"}}>{h}</th>
+                  ))}
+                  <th style={{padding:"9px 10px"}}/>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a,i)=>{
+                  const isDone=a.status==="done";
+                  const cc=COL_C[a.cardColumn]||"#aaa";
+                  const overdue=a.dueDate&&!isDone&&new Date(a.dueDate)<new Date();
+                  return(
+                    <tr key={`${a.roomId}-${a.id||i}`} style={{background:i%2===0?"#F8FAFA":"#fff",borderBottom:"1px solid #DDE8E8"}}>
+                      <td style={{padding:"9px 10px",fontSize:13,color:isDone?"#9BB8B8":"#0A2020",textDecoration:isDone?"line-through":"none",maxWidth:180}}>{a.text}</td>
+                      <td style={{padding:"9px 10px"}}>
+                        <span style={{background:isDone?"#D1FAE5":"#FEF3C7",color:isDone?"#065F46":"#92400E",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>{isDone?"Done":"Open"}</span>
+                      </td>
+                      <td style={{padding:"9px 10px",fontSize:11,color:"#5A7878",whiteSpace:"nowrap"}}>{a.sessionName}</td>
+                      <td style={{padding:"9px 10px"}}>
+                        <span style={{background:`${cc}20`,color:cc,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>{a.cardColumn}</span>
+                        <div style={{fontSize:9,color:"#9BB8B8",marginTop:1,maxWidth:100,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.cardText}</div>
+                      </td>
+                      <td style={{padding:"9px 10px",fontSize:12,color:"#5A7878"}}>{a.assignee||"—"}</td>
+                      <td style={{padding:"9px 10px",fontSize:12,color:overdue?"#EF4444":"#5A7878",fontWeight:overdue?700:400}}>{a.dueDate||"—"}</td>
+                      <td style={{padding:"9px 10px",fontSize:11,color:"#9BB8B8",whiteSpace:"nowrap"}}>{fmtDate(a.createdAt)}</td>
+                      <td style={{padding:"9px 10px",fontSize:11,color:"#9BB8B8",whiteSpace:"nowrap"}}>{fmtDate(a.completedAt)}</td>
+                      <td style={{padding:"9px 8px",whiteSpace:"nowrap"}}>
+                        <button onClick={()=>onToggleAction(a.roomId, a.cardId, a.id)}
+                          style={{background:isDone?"#FEF3C7":"#D1FAE5",color:isDone?"#92400E":"#065F46",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontWeight:700,fontSize:11}}>
+                          {isDone?"Reopen":"Complete"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── TeamSection ──────────────────────────────────────────────────────────────
-function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDeleteRoom, onRejoinRoom, onActionsRoom }) {
+function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDeleteRoom, onRejoinRoom, onActionsRoom, onTeamActions }) {
   const [open, setOpen] = useState(true);
   const teamRooms = rooms.filter(r=>r.teamId===team.id);
+  const teamAllActions = teamRooms.flatMap(r=>(r.boardEntries||[]).flatMap(c=>(c.actions||[]).filter(a=>typeof a==="object")));
+  const teamDone = teamAllActions.filter(a=>a.status==="done").length;
+  const teamTotal = teamAllActions.length;
+  const allDone = teamTotal>0 && teamDone===teamTotal;
 
   return (
     <div style={{background:T.offWhite,borderRadius:16,overflow:"hidden",marginBottom:12,border:`1.5px solid ${T.gray100}`}}>
-      {/* Team header */}
-      <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 18px",cursor:"pointer",background:T.white}}
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 18px",cursor:"pointer",background:T.white}}
         onClick={()=>setOpen(o=>!o)}>
         <span style={{fontSize:18}}>👥</span>
         <div style={{flex:1}}>
@@ -412,13 +510,18 @@ function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDele
           {team.description&&<div style={{fontSize:12,color:T.gray500}}>{team.description}</div>}
         </div>
         <span style={{background:T.tealBg,color:T.tealDark,borderRadius:8,padding:"2px 10px",fontSize:12,fontWeight:700}}>{teamRooms.length} session{teamRooms.length!==1?"s":""}</span>
+        {teamTotal>0&&(
+          <button onClick={e=>{e.stopPropagation();onTeamActions(team);}}
+            style={{background:allDone?"#D1FAE5":"#FEF3C7",color:allDone?"#065F46":"#92400E",border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>
+            ⚡ Team Actions {teamDone}/{teamTotal}
+          </button>
+        )}
         <button onClick={e=>{e.stopPropagation();onEditTeam(team);}}
           style={{background:T.tealBg,color:T.tealDark,border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>✏️</button>
         <button onClick={e=>{e.stopPropagation();onDeleteTeam(team);}}
           style={{background:T.redBg,color:T.red,border:`1px solid ${T.red}30`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>🗑</button>
         <span style={{color:T.gray300,fontSize:18,display:"inline-block",transform:open?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>›</span>
       </div>
-      {/* Sessions */}
       {open&&(
         <div style={{padding:"10px 14px 14px"}}>
           {teamRooms.length===0
@@ -434,25 +537,27 @@ function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDele
 // ─── AdminPanel ───────────────────────────────────────────────────────────────
 export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
   const isSuperAdmin = user.email === SUPERADMIN_EMAIL;
-  const [tab,          setTab]          = useState("my"); // "my" | "super"
-  const [rooms,        setRooms]        = useState([]);
-  const [allRooms,     setAllRooms]     = useState([]);
-  const [teams,        setTeams]        = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [selectedRoom, setSelectedRoom] = useState(null);
-  const [actionsRoom,  setActionsRoom]  = useState(null);
-  const [teamModal,    setTeamModal]    = useState(null);
-  const [confirm,      setConfirm]      = useState(null);
-  const [search,       setSearch]       = useState("");
-  const [superSearch,  setSuperSearch]  = useState("");
+  const [tab,           setTab]           = useState("my");
+  const [rooms,         setRooms]         = useState([]);
+  const [allRooms,      setAllRooms]      = useState([]);
+  const [teams,         setTeams]         = useState([]);
+  const [users,         setUsers]         = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [selectedRoom,  setSelectedRoom]  = useState(null);
+  const [actionsRoom,   setActionsRoom]   = useState(null);
+  const [teamActionsData, setTeamActionsData] = useState(null); // {team, rooms}
+  const [teamModal,     setTeamModal]     = useState(null);
+  const [confirm,       setConfirm]       = useState(null);
+  const [search,        setSearch]        = useState("");
+  const [superSearch,   setSuperSearch]   = useState("");
 
   const loadData = useCallback(async ()=>{
     setLoading(true);
     const promises = [getAllRooms(user.uid), getAllTeams(user.uid)];
-    if(isSuperAdmin) promises.push(getAllRoomsAll());
-    const [r,t,all] = await Promise.all(promises);
+    if(isSuperAdmin) promises.push(getAllRoomsAll(), getAllUsers());
+    const [r,t,all,usr] = await Promise.all(promises);
     setRooms(r); setTeams(t);
-    if(isSuperAdmin) setAllRooms(all||[]);
+    if(isSuperAdmin){ setAllRooms(all||[]); setUsers(usr||[]); }
     setLoading(false);
   },[user.uid, isSuperAdmin]);
 
@@ -577,6 +682,7 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
                 {label:"Completed",         value:allRooms.filter(r=>r.revealed).length,   color:"#10B981", icon:"✅"},
                 {label:"In Progress",       value:allRooms.filter(r=>!r.revealed).length,  color:T.orange,  icon:"⏳"},
                 {label:"Total Participants",value:allRooms.reduce((s,r)=>s+Object.values(r.participants||{}).filter(p=>p.submitted).length,0), color:"#8B5CF6", icon:"👥"},
+                {label:"Admin Members",     value:users.length,                            color:"#EC4899", icon:"🧑‍💼"},
               ].map(s=>(
                 <div key={s.label} style={{flex:"1 1 130px",background:T.white,borderRadius:14,padding:"14px 18px",boxShadow:`0 3px 14px ${s.color}20`,borderTop:`4px solid ${s.color}`}}>
                   <div style={{fontSize:22,marginBottom:4}}>{s.icon}</div>
@@ -585,6 +691,32 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
                 </div>
               ))}
             </div>
+
+            {/* Members list */}
+            {users.length>0&&(
+              <div style={{background:T.white,borderRadius:16,padding:"16px 20px",marginBottom:20,boxShadow:`0 2px 10px ${T.teal}10`}}>
+                <div style={{fontWeight:800,fontSize:13,color:T.gray500,marginBottom:12,letterSpacing:".5px"}}>🧑‍💼 ADMIN MEMBERS ({users.length})</div>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                  {users.map(u=>{
+                    const userRooms=allRooms.filter(r=>r.createdBy===u.uid);
+                    return(
+                      <div key={u.uid} style={{display:"flex",alignItems:"center",gap:10,background:T.offWhite,borderRadius:12,padding:"10px 14px",minWidth:220,border:`1.5px solid ${T.gray100}`}}>
+                        {u.photoURL
+                          ? <img src={u.photoURL} alt="" style={{width:36,height:36,borderRadius:"50%",flexShrink:0}}/>
+                          : <div style={{width:36,height:36,borderRadius:"50%",background:T.teal,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:16,flexShrink:0}}>{(u.displayName||u.email||"?")[0].toUpperCase()}</div>
+                        }
+                        <div style={{minWidth:0}}>
+                          <div style={{fontWeight:700,fontSize:13,color:T.dark,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.displayName||"—"}</div>
+                          <div style={{fontSize:11,color:T.gray500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.email}</div>
+                          <div style={{fontSize:10,color:T.gray300,marginTop:1}}>{userRooms.length} session{userRooms.length!==1?"s":""}</div>
+                        </div>
+                        {u.email===SUPERADMIN_EMAIL&&<span style={{background:"#F59E0B",color:"#fff",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:800,flexShrink:0}}>⭐</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div style={{background:T.white,borderRadius:12,padding:"12px 16px",marginBottom:16,boxShadow:`0 2px 10px ${T.teal}10`}}>
               <input value={superSearch} onChange={e=>setSuperSearch(e.target.value)}
                 placeholder="🔍 Search by room ID, host, session name or team…"
@@ -678,7 +810,8 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
                       <TeamSection key={team.id} team={team} rooms={rooms}
                         onEditTeam={handleEditTeam} onDeleteTeam={handleDeleteTeam}
                         onViewRoom={setSelectedRoom} onDeleteRoom={handleDeleteRoom}
-                        onRejoinRoom={onRejoinSession} onActionsRoom={setActionsRoom}/>
+                        onRejoinRoom={onRejoinSession} onActionsRoom={setActionsRoom}
+                        onTeamActions={team=>setTeamActionsData({team, rooms})}/>
                     ))}
                   </div>
                 )}
@@ -705,6 +838,7 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
 
       {selectedRoom&&<RetroDetail room={selectedRoom} onClose={()=>setSelectedRoom(null)}/>}
       {actionsRoom&&<ActionsModal room={actionsRoom} onClose={()=>setActionsRoom(null)} onToggleAction={handleToggleAction}/>}
+      {teamActionsData&&<TeamActionsModal team={teamActionsData.team} rooms={teamActionsData.rooms} onClose={()=>setTeamActionsData(null)} onToggleAction={handleToggleAction}/>}
       {teamModal&&<TeamModal team={teamModal==="new"?null:teamModal} onSave={handleSaveTeam} onClose={()=>setTeamModal(null)}/>}
       {confirm&&<Confirm message={confirm.message} onConfirm={confirm.onConfirm} onCancel={()=>setConfirm(null)}/>}
     </div>
