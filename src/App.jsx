@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { onValue, off, update } from "firebase/database";
 import { uid, nowISO, roomRef, fbGet, fbSet, signInWithGoogle, signOutUser, onAuth, getAllTeams, registerUser } from "./firebase.js";
 import AdminPanel from "./Admin.jsx";
-import { ThemeBackground, ThemePicker, THEMES, getTheme, setTheme as saveTheme } from "./themes.jsx";
+import { ThemeBackground, ThemePicker, getBgUrl, saveBgUrl } from "./themes.jsx";
 
 const VERSION = "v5";
 
@@ -769,7 +769,7 @@ export default function App() {
   const [setupName,   setSetupName]   = useState("");
   const [adminUser,   setAdminUser]   = useState(null);
   const [teams,       setTeams]       = useState([]);
-  const [themeId,     setThemeId]     = useState(getTheme);
+  const [themeUrl,        setThemeUrl]        = useState(getBgUrl);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const skipHashRef = useRef(false);
   const unsubRef    = useRef(null);
@@ -915,7 +915,7 @@ export default function App() {
 
   function copyLink(){ navigator.clipboard.writeText(`${location.origin}${location.pathname}#retro-${roomId}`).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}); }
 
-  const isDark = themeId !== "default";
+  const isDark = !!themeUrl;
   const zContent = { position:"relative", zIndex:2 };
 
   const base={minHeight:"100vh",background:isDark?"transparent":"#E8F8F5",fontFamily:"'Segoe UI',system-ui,sans-serif",color:isDark?"#e0f0f0":T.dark,position:"relative",zIndex:2};
@@ -964,20 +964,20 @@ export default function App() {
   }
 
   // ── Views ─────────────────────────────────────────────────────────────────────
-  function handleThemeChange(id) {
-    setThemeId(id);
-    saveTheme(id);
+  function handleThemeChange(url) {
+    setThemeUrl(url);
+    saveBgUrl(url);
   }
 
   if(view==="admin") return (
     <div style={{position:"relative",minHeight:"100vh"}}>
-      <ThemeBackground themeId={themeId}/>
+      <ThemeBackground url={themeUrl}/>
       <div style={zContent}>
         {adminUser
           ? <AdminPanel user={adminUser}
               onNewSession={()=>{skipHashRef.current=true;window.location.hash="";setView("home");}}
               onRejoinSession={handleAdminRejoin}
-              currentTheme={themeId}
+              currentTheme={themeUrl}
               onOpenThemePicker={()=>setShowThemePicker(true)}/>
           : <div style={{display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,minHeight:"100vh"}}>
               <div style={{fontSize:48}}>🔐</div>
@@ -987,13 +987,13 @@ export default function App() {
             </div>
         }
       </div>
-      {showThemePicker&&<ThemePicker current={themeId} onChange={handleThemeChange} onClose={()=>setShowThemePicker(false)}/>}
+      {showThemePicker&&<ThemePicker currentUrl={themeUrl} onChange={handleThemeChange} onClose={()=>setShowThemePicker(false)}/>}
     </div>
   );
 
-  if(view==="home")  return <><ThemeBackground themeId={themeId}/><div style={zContent}><HomeScreen onSetup={goSetup} onJoin={handleJoin} onAdminLogin={handleAdminLogin} adminUser={adminUser} prefilledName={adminUser?.displayName?.split(" ")[0]||""}/></div>{showThemePicker&&<ThemePicker current={themeId} onChange={handleThemeChange} onClose={()=>setShowThemePicker(false)}/>}</>;
-  if(view==="setup") return <><ThemeBackground themeId={themeId}/><div style={zContent}><SetupScreen hostName={setupName} onBack={()=>setView("home")} onCreate={handleCreate} teams={teams} isAdmin={!!adminUser}/></div></>;
-  if(view==="join")  return <><ThemeBackground themeId={themeId}/><div style={zContent}><JoinScreen onJoin={handleJoinFromLink} roomId={roomId}/></div></>;
+  if(view==="home")  return <><ThemeBackground url={themeUrl}/><div style={zContent}><HomeScreen onSetup={goSetup} onJoin={handleJoin} onAdminLogin={handleAdminLogin} adminUser={adminUser} prefilledName={adminUser?.displayName?.split(" ")[0]||""}/></div>{showThemePicker&&<ThemePicker currentUrl={themeUrl} onChange={handleThemeChange} onClose={()=>setShowThemePicker(false)}/>}</>;
+  if(view==="setup") return <><ThemeBackground url={themeUrl}/><div style={zContent}><SetupScreen hostName={setupName} onBack={()=>setView("home")} onCreate={handleCreate} teams={teams} isAdmin={!!adminUser}/></div></>;
+  if(view==="join")  return <><ThemeBackground url={themeUrl}/><div style={zContent}><JoinScreen onJoin={handleJoinFromLink} roomId={roomId}/></div></>;
 
   const boardCards = room?.boardEntries||[];
 
@@ -1002,7 +1002,7 @@ export default function App() {
     const allow3=room?.allow3??false;
     const allScored=questions.every(q=>scores[q.id]>0);
     return (
-      <><ThemeBackground themeId={themeId}/>
+      <><ThemeBackground url={themeUrl}/>
       <div style={base}>
         <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px 60px"}}>
           <Topbar/>
@@ -1056,7 +1056,7 @@ export default function App() {
     const done=parts.filter(p=>p.submitted).length, total=parts.length;
     const allDone=done===total&&total>0;
     return(
-      <><ThemeBackground themeId={themeId}/>
+      <><ThemeBackground url={themeUrl}/>
       <div style={base}>
         <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px 60px"}}>
           <Topbar/>
@@ -1105,7 +1105,7 @@ export default function App() {
     const questions=room.questions||DEFAULT_QUESTIONS;
     const sorted=[...boardCards].sort((a,b)=>totalReactions(b)-totalReactions(a));
     return(
-      <><ThemeBackground themeId={themeId}/>
+      <><ThemeBackground url={themeUrl}/>
       <div style={base}>
         <div style={{background:`linear-gradient(135deg,${T.tealDark},${T.teal})`,padding:"14px 24px",display:"flex",alignItems:"center",gap:14,boxShadow:`0 4px 20px ${T.teal}40`}}>
           <div style={{fontSize:26}}>🔄</div>
@@ -1148,5 +1148,5 @@ export default function App() {
     );
   }
 
-  return <><ThemeBackground themeId={themeId}/><div style={base}><div style={{padding:40,textAlign:"center",color:T.gray500}}>Loading…</div></div></>;
+  return <><ThemeBackground url={themeUrl}/><div style={base}><div style={{padding:40,textAlign:"center",color:T.gray500}}>Loading…</div></div></>;
 }

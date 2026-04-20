@@ -535,7 +535,7 @@ function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDele
 }
 
 // ─── AdminPanel ───────────────────────────────────────────────────────────────
-export default function AdminPanel({ user, onNewSession, onRejoinSession, currentTheme, onOpenThemePicker }) {
+export default function AdminPanel({ user, onNewSession, onRejoinSession, onOpenThemePicker }) {
   const isSuperAdmin = user.email === SUPERADMIN_EMAIL;
   const [tab,           setTab]           = useState("my");
   const [rooms,         setRooms]         = useState([]);
