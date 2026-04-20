@@ -564,12 +564,12 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
   useEffect(()=>{ loadData(); },[loadData]);
 
   async function handleToggleAction(roomId, cardId, actionId){
-    const { getDatabase, ref, get, update } = await import("firebase/database");
-    const { db } = await import("./firebase.js");
-    const snap = await get(ref(db,`rooms/${roomId}`));
+    const { ref: fbRef, get: fbGet2, update: fbUpdate } = await import("firebase/database");
+    const { db: fbDb } = await import("./firebase.js");
+    const snap = await fbGet2(fbRef(fbDb,`rooms/${roomId}`));
     if(!snap.exists()) return;
     const r = snap.val();
-    const updated=(r.boardEntries||[]).map(c=>{
+    const updatedEntries=(r.boardEntries||[]).map(c=>{
       if(c.id!==cardId) return c;
       const actions=(c.actions||[]).map(a=>{
         if(typeof a!=="object"||a.id!==actionId) return a;
@@ -579,13 +579,15 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
       });
       return {...c,actions};
     });
-    await update(ref(db,`rooms/${roomId}`),{boardEntries:updated});
-    // Refresh rooms and actionsRoom
-    await loadData();
-    setActionsRoom(prev=>{
-      if(!prev||prev.id!==roomId) return prev;
-      return {...prev,boardEntries:updated};
-    });
+    await fbUpdate(fbRef(fbDb,`rooms/${roomId}`),{boardEntries:updatedEntries});
+
+    // Update all local state that might reference this room
+    const patchRoom = room => room.id===roomId ? {...room,boardEntries:updatedEntries} : room;
+
+    setRooms(prev=>prev.map(patchRoom));
+    setAllRooms(prev=>prev.map(patchRoom));
+    setActionsRoom(prev=>prev?.id===roomId ? {...prev,boardEntries:updatedEntries} : prev);
+    setTeamActionsData(prev=>prev ? {...prev, rooms: prev.rooms.map(patchRoom)} : prev);
   }
 
   // ── Team CRUD
@@ -811,7 +813,7 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
                         onEditTeam={handleEditTeam} onDeleteTeam={handleDeleteTeam}
                         onViewRoom={setSelectedRoom} onDeleteRoom={handleDeleteRoom}
                         onRejoinRoom={onRejoinSession} onActionsRoom={setActionsRoom}
-                        onTeamActions={team=>setTeamActionsData({team, rooms})}/>
+                        onTeamActions={t=>setTeamActionsData({team:t, rooms})}/>
                     ))}
                   </div>
                 )}

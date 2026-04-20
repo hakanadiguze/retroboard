@@ -771,7 +771,10 @@ export default function App() {
   const skipHashRef = useRef(false);
   const unsubRef    = useRef(null);
 
-  useEffect(()=>onAuth(u=>setAdminUser(u)),[]);
+  useEffect(()=>onAuth(u=>{
+    setAdminUser(u);
+    if(u) registerUser(u); // register/update on every session
+  }),[]);
   useEffect(()=>{ if(adminUser?.uid)getAllTeams(adminUser.uid).then(setTeams); else setTeams([]); },[adminUser?.uid]);
 
   useEffect(()=>{
