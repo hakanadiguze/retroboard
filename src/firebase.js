@@ -24,7 +24,7 @@ export const roomRef = (id) => ref(db, `rooms/${id}`);
 export async function fbGet(id)       { const s=await get(roomRef(id)); return s.exists()?s.val():null; }
 export async function fbSet(id, data) { await set(roomRef(id), data); }
 
-// ── Rooms — filtered by createdBy uid ────────────────────────────────────────
+// ── Rooms ─────────────────────────────────────────────────────────────────────
 export async function getAllRooms(adminUid) {
   const s = await get(ref(db,"rooms"));
   if(!s.exists()) return [];
@@ -33,6 +33,18 @@ export async function getAllRooms(adminUid) {
     .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
 }
 
+export async function getAllRoomsAll() {
+  const s = await get(ref(db,"rooms"));
+  if(!s.exists()) return [];
+  return Object.values(s.val())
+    .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+}
+
+export async function deleteRoom(id) {
+  await remove(ref(db,`rooms/${id}`));
+}
+
+// ── Teams ─────────────────────────────────────────────────────────────────────
 export async function getAllTeams(adminUid) {
   const s = await get(ref(db,"teams"));
   if(!s.exists()) return [];
@@ -52,19 +64,25 @@ export async function deleteTeam(id) {
   await remove(ref(db,`teams/${id}`));
 }
 
-export async function deleteRoom(id) {
-  await remove(ref(db,`rooms/${id}`));
+// ── Users (auto-registered on admin login) ────────────────────────────────────
+export async function registerUser(user) {
+  await set(ref(db,`users/${user.uid}`), {
+    uid:         user.uid,
+    email:       user.email,
+    displayName: user.displayName||"",
+    photoURL:    user.photoURL||"",
+    lastLogin:   nowISO(),
+  });
 }
 
-export const SUPERADMIN_EMAIL = "hakanadiguzel@gmail.com";
-
-// ── All rooms (superadmin only) ───────────────────────────────────────────────
-export async function getAllRoomsAll() {
-  const s = await get(ref(db,"rooms"));
+export async function getAllUsers() {
+  const s = await get(ref(db,"users"));
   if(!s.exists()) return [];
-  return Object.values(s.val())
-    .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+  return Object.values(s.val()).sort((a,b)=>(a.displayName||"").localeCompare(b.displayName||""));
 }
+
+// ── SuperAdmin ────────────────────────────────────────────────────────────────
+export const SUPERADMIN_EMAIL = "hakanadiguzel@gmail.com";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export function signInWithGoogle() { return signInWithPopup(auth, googleProvider); }

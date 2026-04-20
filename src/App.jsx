@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { onValue, off, update } from "firebase/database";
-import { uid, nowISO, roomRef, fbGet, fbSet, signInWithGoogle, signOutUser, onAuth, getAllTeams } from "./firebase.js";
+import { uid, nowISO, roomRef, fbGet, fbSet, signInWithGoogle, signOutUser, onAuth, getAllTeams, registerUser } from "./firebase.js";
 import AdminPanel from "./Admin.jsx";
 
-const VERSION = "v4";
+const VERSION = "v5";
 
 const T = {
   teal:"#0D9E9E", tealDark:"#076F6F", tealLight:"#7FDADA", tealBg:"#E6F7F7",
@@ -797,7 +797,13 @@ export default function App() {
   useEffect(()=>()=>{if(unsubRef.current)unsubRef.current();},[]);
   useEffect(()=>{if(room?.revealed&&(view==="waiting"||view==="input"))setView("board");},[room?.revealed]);
 
-  async function handleAdminLogin(){ try{await signInWithGoogle();window.location.hash="admin";}catch(e){console.error(e);} }
+  async function handleAdminLogin(){
+    try{
+      const result = await signInWithGoogle();
+      await registerUser(result.user);
+      window.location.hash="admin";
+    }catch(e){console.error(e);}
+  }
   function goSetup(name){setSetupName(name);setView("setup");}
 
   async function handleCreate(questions,allow3,teamId,teamName,sessionName){
