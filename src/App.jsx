@@ -915,6 +915,9 @@ export default function App() {
 
   function copyLink(){ navigator.clipboard.writeText(`${location.origin}${location.pathname}#retro-${roomId}`).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}); }
 
+  const isDark = themeId !== "default";
+  const zContent = { position:"relative", zIndex:2 };
+
   const base={minHeight:"100vh",background:isDark?"transparent":"#E8F8F5",fontFamily:"'Segoe UI',system-ui,sans-serif",color:isDark?"#e0f0f0":T.dark,position:"relative",zIndex:2};
   const card=(ex={})=>({background:isDark?"rgba(10,20,20,0.75)":"#fff",borderRadius:20,padding:24,boxShadow:isDark?`0 6px 32px rgba(0,0,0,.5)`:`0 6px 32px ${T.teal}15`,backdropFilter:isDark?"blur(8px)":"none",...ex});
   const btn=(bg,color=T.white,ex={})=>({background:bg,color,border:"none",borderRadius:12,padding:"10px 20px",fontWeight:700,fontSize:14,cursor:"pointer",...ex});
@@ -965,9 +968,6 @@ export default function App() {
     setThemeId(id);
     saveTheme(id);
   }
-
-  const isDark = themeId !== "default";
-  const zContent = { position:"relative", zIndex:2 };
 
   if(view==="admin") return (
     <div style={{position:"relative",minHeight:"100vh"}}>
