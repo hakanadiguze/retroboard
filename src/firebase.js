@@ -56,6 +56,16 @@ export async function deleteRoom(id) {
   await remove(ref(db,`rooms/${id}`));
 }
 
+export const SUPERADMIN_EMAIL = "hakanadiguzel@gmail.com";
+
+// ── All rooms (superadmin only) ───────────────────────────────────────────────
+export async function getAllRoomsAll() {
+  const s = await get(ref(db,"rooms"));
+  if(!s.exists()) return [];
+  return Object.values(s.val())
+    .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export function signInWithGoogle() { return signInWithPopup(auth, googleProvider); }
 export function signOutUser()      { return signOut(auth); }

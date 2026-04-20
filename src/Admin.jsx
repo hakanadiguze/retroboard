@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getAllRooms, getAllTeams, saveTeam, deleteTeam, deleteRoom, signOutUser, uid, nowISO } from "./firebase.js";
+import { getAllRooms, getAllRoomsAll, getAllTeams, saveTeam, deleteTeam, deleteRoom, signOutUser, uid, nowISO, SUPERADMIN_EMAIL } from "./firebase.js";
 
 const T = {
   teal:"#0D9E9E", tealDark:"#076F6F", tealLight:"#7FDADA", tealBg:"#E6F7F7",
@@ -386,7 +386,7 @@ function SessionRow({ room, onView, onDelete, onRejoin, onActions }) {
       )}
       <button onClick={()=>onView(room)}
         style={{flexShrink:0,background:T.offWhite,color:T.gray500,border:`1px solid ${T.gray100}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:600,fontSize:12}}>
-        View →
+        📋 Summary
       </button>
       <button onClick={e=>{e.stopPropagation();onDelete(room);}}
         style={{flexShrink:0,background:"#FEF2F2",color:"#EF4444",border:"1px solid #EF444430",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>
@@ -433,7 +433,10 @@ function TeamSection({ team, rooms, onEditTeam, onDeleteTeam, onViewRoom, onDele
 
 // ─── AdminPanel ───────────────────────────────────────────────────────────────
 export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
+  const isSuperAdmin = user.email === SUPERADMIN_EMAIL;
+  const [tab,          setTab]          = useState("my"); // "my" | "super"
   const [rooms,        setRooms]        = useState([]);
+  const [allRooms,     setAllRooms]     = useState([]);
   const [teams,        setTeams]        = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -441,12 +444,17 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
   const [teamModal,    setTeamModal]    = useState(null);
   const [confirm,      setConfirm]      = useState(null);
   const [search,       setSearch]       = useState("");
+  const [superSearch,  setSuperSearch]  = useState("");
 
   const loadData = useCallback(async ()=>{
     setLoading(true);
-    const [r,t] = await Promise.all([getAllRooms(user.uid), getAllTeams(user.uid)]);
-    setRooms(r); setTeams(t); setLoading(false);
-  },[user.uid]);
+    const promises = [getAllRooms(user.uid), getAllTeams(user.uid)];
+    if(isSuperAdmin) promises.push(getAllRoomsAll());
+    const [r,t,all] = await Promise.all(promises);
+    setRooms(r); setTeams(t);
+    if(isSuperAdmin) setAllRooms(all||[]);
+    setLoading(false);
+  },[user.uid, isSuperAdmin]);
 
   useEffect(()=>{ loadData(); },[loadData]);
 
@@ -528,109 +536,177 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession }) {
       <div style={{background:`linear-gradient(135deg,${T.tealDark},${T.teal})`,padding:"16px 28px",display:"flex",alignItems:"center",gap:16,boxShadow:`0 4px 20px ${T.teal}40`}}>
         <div style={{fontSize:28}}>🔄</div>
         <div>
-          <div style={{color:T.white,fontWeight:900,fontSize:20}}>RetroBoard Admin</div>
+          <div style={{color:T.white,fontWeight:900,fontSize:20,display:"flex",alignItems:"center",gap:8}}>
+            RetroBoard Admin
+            {isSuperAdmin&&<span style={{background:"#F59E0B",color:"#fff",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>⭐ SuperAdmin</span>}
+          </div>
           <div style={{color:T.tealLight,fontSize:12}}>{user.displayName} · {user.email}</div>
         </div>
         <div style={{marginLeft:"auto",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-          <button onClick={onNewSession}
-            style={{background:T.orange,color:T.white,border:"none",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13}}>
-            ⚡ New Session
-          </button>
-          <button onClick={handleNewTeam}
-            style={{background:"rgba(255,255,255,.15)",color:T.white,border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>
-            ➕ New Team
-          </button>
-          <button onClick={loadData}
-            style={{background:"rgba(255,255,255,.15)",color:T.white,border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>
-            🔄 Refresh
-          </button>
-          <button onClick={signOutUser}
-            style={{background:"rgba(255,0,0,.2)",color:T.white,border:"1px solid rgba(255,100,100,.4)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>
-            Sign Out
-          </button>
+          <button onClick={onNewSession} style={{background:T.orange,color:T.white,border:"none",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13}}>⚡ New Session</button>
+          <button onClick={handleNewTeam} style={{background:"rgba(255,255,255,.15)",color:T.white,border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>➕ New Team</button>
+          <button onClick={loadData} style={{background:"rgba(255,255,255,.15)",color:T.white,border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>🔄 Refresh</button>
+          <button onClick={signOutUser} style={{background:"rgba(255,0,0,.2)",color:T.white,border:"1px solid rgba(255,100,100,.4)",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13}}>Sign Out</button>
         </div>
       </div>
 
-      <div style={{maxWidth:1100,margin:"0 auto",padding:"24px 20px"}}>
-        {/* Stats */}
-        <div style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
+      {/* Tabs — only shown to superadmin */}
+      {isSuperAdmin&&(
+        <div style={{background:T.white,borderBottom:`2px solid ${T.gray100}`,display:"flex",gap:0}}>
           {[
-            {label:"Total Sessions",     value:stats.total,              color:T.teal,    icon:"🔄"},
-            {label:"Completed",          value:stats.revealed,           color:"#10B981", icon:"✅"},
-            {label:"In Progress",        value:stats.total-stats.revealed, color:T.orange, icon:"⏳"},
-            {label:"Total Participants", value:stats.participants,       color:"#8B5CF6", icon:"👥"},
-            {label:"Teams",              value:teams.length,             color:"#EC4899", icon:"👥"},
-          ].map(s=>(
-            <div key={s.label} style={{flex:"1 1 130px",background:T.white,borderRadius:14,padding:"14px 18px",boxShadow:`0 3px 14px ${s.color}20`,borderTop:`4px solid ${s.color}`}}>
-              <div style={{fontSize:22,marginBottom:4}}>{s.icon}</div>
-              <div style={{fontSize:26,fontWeight:900,color:s.color}}>{s.value}</div>
-              <div style={{fontSize:11,color:T.gray500,fontWeight:600}}>{s.label}</div>
-            </div>
+            {id:"my",    label:"My Sessions"},
+            {id:"super", label:"⭐ All Sessions (SuperAdmin)"},
+          ].map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              style={{padding:"12px 28px",border:"none",borderBottom:tab===t.id?`3px solid ${T.teal}`:"3px solid transparent",
+                background:"none",fontWeight:tab===t.id?800:500,fontSize:14,
+                color:tab===t.id?T.tealDark:T.gray500,cursor:"pointer",transition:"all .15s",marginBottom:-2}}>
+              {t.label}
+            </button>
           ))}
         </div>
+      )}
 
-        {/* Search */}
-        <div style={{background:T.white,borderRadius:12,padding:"12px 16px",marginBottom:20,boxShadow:`0 2px 10px ${T.teal}10`}}>
-          <input value={search} onChange={e=>setSearch(e.target.value)}
-            placeholder="🔍 Search sessions or teams…"
-            style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${T.gray100}`,fontSize:13,outline:"none",color:T.dark,boxSizing:"border-box"}}/>
-        </div>
-
-        {loading ? (
-          <div style={{textAlign:"center",padding:"60px 0",color:T.gray300,fontSize:16}}>Loading…</div>
-        ) : (
+      <div style={{maxWidth:1200,margin:"0 auto",padding:"24px 20px"}}>
+        {tab==="super" ? (
+          /* ── SuperAdmin view ── */
           <>
-            {/* Teams with their sessions */}
-            {filteredTeams.length>0&&(
-              <div style={{marginBottom:8}}>
-                <div style={{fontWeight:800,fontSize:13,color:T.gray500,marginBottom:10,letterSpacing:".5px"}}>TEAMS</div>
-                {filteredTeams.map(team=>(
-                  <TeamSection key={team.id} team={team} rooms={rooms}
-                    onEditTeam={handleEditTeam} onDeleteTeam={handleDeleteTeam}
-                    onViewRoom={setSelectedRoom} onDeleteRoom={handleDeleteRoom}
-                    onRejoinRoom={onRejoinSession} onActionsRoom={setActionsRoom}/>
-                ))}
-              </div>
-            )}
-
-            {/* Unassigned sessions */}
-            {filteredUnassigned.length>0&&(
-              <div>
-                <div style={{fontWeight:800,fontSize:13,color:T.gray500,marginBottom:10,letterSpacing:".5px"}}>SESSIONS WITHOUT A TEAM</div>
-                <div style={{background:T.offWhite,borderRadius:16,padding:"10px 14px 14px",border:`1.5px solid ${T.gray100}`}}>
-                  {filteredUnassigned.map(r=>(
-                    <SessionRow key={r.id} room={r} onView={setSelectedRoom} onDelete={handleDeleteRoom} onRejoin={onRejoinSession} onActions={setActionsRoom}/>
-                  ))}
+            <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
+              {[
+                {label:"Total Sessions",    value:allRooms.length,                         color:T.teal,    icon:"🔄"},
+                {label:"Completed",         value:allRooms.filter(r=>r.revealed).length,   color:"#10B981", icon:"✅"},
+                {label:"In Progress",       value:allRooms.filter(r=>!r.revealed).length,  color:T.orange,  icon:"⏳"},
+                {label:"Total Participants",value:allRooms.reduce((s,r)=>s+Object.values(r.participants||{}).filter(p=>p.submitted).length,0), color:"#8B5CF6", icon:"👥"},
+              ].map(s=>(
+                <div key={s.label} style={{flex:"1 1 130px",background:T.white,borderRadius:14,padding:"14px 18px",boxShadow:`0 3px 14px ${s.color}20`,borderTop:`4px solid ${s.color}`}}>
+                  <div style={{fontSize:22,marginBottom:4}}>{s.icon}</div>
+                  <div style={{fontSize:26,fontWeight:900,color:s.color}}>{s.value}</div>
+                  <div style={{fontSize:11,color:T.gray500,fontWeight:600}}>{s.label}</div>
                 </div>
+              ))}
+            </div>
+            <div style={{background:T.white,borderRadius:12,padding:"12px 16px",marginBottom:16,boxShadow:`0 2px 10px ${T.teal}10`}}>
+              <input value={superSearch} onChange={e=>setSuperSearch(e.target.value)}
+                placeholder="🔍 Search by room ID, host, session name or team…"
+                style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${T.gray100}`,fontSize:13,outline:"none",color:T.dark,boxSizing:"border-box"}}/>
+            </div>
+            {loading?(
+              <div style={{textAlign:"center",padding:"60px 0",color:T.gray300}}>Loading…</div>
+            ):(
+              <div style={{background:T.offWhite,borderRadius:16,padding:"10px 14px 14px",border:`1.5px solid ${T.gray100}`}}>
+                {allRooms
+                  .filter(r=>!superSearch||r.id.includes(superSearch)||r.hostName?.toLowerCase().includes(superSearch.toLowerCase())||r.sessionName?.toLowerCase().includes(superSearch.toLowerCase())||r.teamName?.toLowerCase().includes(superSearch.toLowerCase()))
+                  .map(r=>{
+                    const parts=Object.values(r.participants||{}).filter(p=>p.submitted);
+                    const allActs=(r.boardEntries||[]).flatMap(c=>(c.actions||[]).filter(a=>typeof a==="object"));
+                    const doneActs=allActs.filter(a=>a.status==="done").length;
+                    return(
+                      <div key={r.id} style={{display:"flex",alignItems:"center",gap:8,padding:"12px 14px",background:T.white,borderRadius:12,marginBottom:6,border:"1.5px solid transparent",transition:"border .15s"}}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor=`${T.teal}40`}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor="transparent"}>
+                        <div style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:r.revealed?"#10B981":T.orange}}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                            {r.sessionName&&<span style={{fontWeight:800,fontSize:14,color:T.dark}}>{r.sessionName}</span>}
+                            <span style={{fontSize:12,color:T.gray500,fontFamily:"monospace"}}>#{r.id}</span>
+                            {r.teamName&&<span style={{background:T.tealBg,color:T.tealDark,borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:700}}>{r.teamName}</span>}
+                            <span style={{background:r.revealed?"#D1FAE5":"#FEF3C7",color:r.revealed?"#065F46":"#92400E",borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:700}}>
+                              {r.revealed?"Completed":"In Progress"}
+                            </span>
+                          </div>
+                          <div style={{fontSize:11,color:T.gray500,marginTop:2}}>
+                            Host: <strong>{r.hostName}</strong> · {fmt(r.createdAt)} · {parts.length} participant{parts.length!==1?"s":""}
+                            {r.createdBy&&<span style={{marginLeft:8,color:T.gray300}}>by {r.createdBy.slice(0,8)}…</span>}
+                            {allActs.length>0&&<span style={{marginLeft:8,color:allActs.length===doneActs?"#10B981":"#F59E0B",fontWeight:700}}>⚡ {doneActs}/{allActs.length} actions</span>}
+                          </div>
+                        </div>
+                        {/* Actions btn */}
+                        {allActs.length>0&&(
+                          <button onClick={()=>setActionsRoom(r)}
+                            style={{flexShrink:0,background:doneActs===allActs.length?"#D1FAE5":"#FEF3C7",color:doneActs===allActs.length?"#065F46":"#92400E",border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:11}}>
+                            ⚡ {doneActs}/{allActs.length}
+                          </button>
+                        )}
+                        <button onClick={()=>setSelectedRoom(r)}
+                          style={{flexShrink:0,background:T.offWhite,color:T.gray500,border:`1px solid ${T.gray100}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:600,fontSize:12}}>
+                          📋 Summary
+                        </button>
+                        <button onClick={()=>onRejoinSession(r.id)}
+                          style={{flexShrink:0,background:r.revealed?"#EFF6FF":"#E6F7F7",color:r.revealed?"#60A5FA":T.tealDark,border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>
+                          {r.revealed?"👁 View Board":"🔗 Join Board"}
+                        </button>
+                        <button onClick={()=>setConfirm({message:`Delete session #${r.id}?`,onConfirm:async()=>{await deleteRoom(r.id);setAllRooms(p=>p.filter(x=>x.id!==r.id));setConfirm(null);}})}
+                          style={{flexShrink:0,background:"#FEF2F2",color:"#EF4444",border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:12}}>🗑</button>
+                      </div>
+                    );
+                  })
+                }
               </div>
             )}
-
-            {filteredTeams.length===0&&filteredUnassigned.length===0&&(
-              <div style={{textAlign:"center",padding:"60px 0",color:T.gray300,fontSize:15}}>
-                {search?"No results found":"No sessions or teams yet"}
-              </div>
+          </>
+        ) : (
+          /* ── My Sessions view ── */
+          <>
+            <div style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
+              {[
+                {label:"Total Sessions",     value:stats.total,              color:T.teal,    icon:"🔄"},
+                {label:"Completed",          value:stats.revealed,           color:"#10B981", icon:"✅"},
+                {label:"In Progress",        value:stats.total-stats.revealed, color:T.orange, icon:"⏳"},
+                {label:"Total Participants", value:stats.participants,       color:"#8B5CF6", icon:"👥"},
+                {label:"Teams",              value:teams.length,             color:"#EC4899", icon:"👥"},
+              ].map(s=>(
+                <div key={s.label} style={{flex:"1 1 130px",background:T.white,borderRadius:14,padding:"14px 18px",boxShadow:`0 3px 14px ${s.color}20`,borderTop:`4px solid ${s.color}`}}>
+                  <div style={{fontSize:22,marginBottom:4}}>{s.icon}</div>
+                  <div style={{fontSize:26,fontWeight:900,color:s.color}}>{s.value}</div>
+                  <div style={{fontSize:11,color:T.gray500,fontWeight:600}}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{background:T.white,borderRadius:12,padding:"12px 16px",marginBottom:20,boxShadow:`0 2px 10px ${T.teal}10`}}>
+              <input value={search} onChange={e=>setSearch(e.target.value)}
+                placeholder="🔍 Search sessions or teams…"
+                style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${T.gray100}`,fontSize:13,outline:"none",color:T.dark,boxSizing:"border-box"}}/>
+            </div>
+            {loading ? (
+              <div style={{textAlign:"center",padding:"60px 0",color:T.gray300,fontSize:16}}>Loading…</div>
+            ) : (
+              <>
+                {filteredTeams.length>0&&(
+                  <div style={{marginBottom:8}}>
+                    <div style={{fontWeight:800,fontSize:13,color:T.gray500,marginBottom:10,letterSpacing:".5px"}}>TEAMS</div>
+                    {filteredTeams.map(team=>(
+                      <TeamSection key={team.id} team={team} rooms={rooms}
+                        onEditTeam={handleEditTeam} onDeleteTeam={handleDeleteTeam}
+                        onViewRoom={setSelectedRoom} onDeleteRoom={handleDeleteRoom}
+                        onRejoinRoom={onRejoinSession} onActionsRoom={setActionsRoom}/>
+                    ))}
+                  </div>
+                )}
+                {filteredUnassigned.length>0&&(
+                  <div>
+                    <div style={{fontWeight:800,fontSize:13,color:T.gray500,marginBottom:10,letterSpacing:".5px"}}>SESSIONS WITHOUT A TEAM</div>
+                    <div style={{background:T.offWhite,borderRadius:16,padding:"10px 14px 14px",border:`1.5px solid ${T.gray100}`}}>
+                      {filteredUnassigned.map(r=>(
+                        <SessionRow key={r.id} room={r} onView={setSelectedRoom} onDelete={handleDeleteRoom} onRejoin={onRejoinSession} onActions={setActionsRoom}/>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {filteredTeams.length===0&&filteredUnassigned.length===0&&(
+                  <div style={{textAlign:"center",padding:"60px 0",color:T.gray300,fontSize:15}}>
+                    {search?"No results found":"No sessions or teams yet"}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
       </div>
 
-      {/* Modals */}
       {selectedRoom&&<RetroDetail room={selectedRoom} onClose={()=>setSelectedRoom(null)}/>}
       {actionsRoom&&<ActionsModal room={actionsRoom} onClose={()=>setActionsRoom(null)} onToggleAction={handleToggleAction}/>}
-
-      {teamModal&&(
-        <TeamModal
-          team={teamModal==="new"?null:teamModal}
-          onSave={handleSaveTeam}
-          onClose={()=>setTeamModal(null)}/>
-      )}
-
-      {confirm&&(
-        <Confirm
-          message={confirm.message}
-          onConfirm={confirm.onConfirm}
-          onCancel={()=>setConfirm(null)}/>
-      )}
+      {teamModal&&<TeamModal team={teamModal==="new"?null:teamModal} onSave={handleSaveTeam} onClose={()=>setTeamModal(null)}/>}
+      {confirm&&<Confirm message={confirm.message} onConfirm={confirm.onConfirm} onCancel={()=>setConfirm(null)}/>}
     </div>
   );
 }
