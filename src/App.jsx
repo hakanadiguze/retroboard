@@ -546,18 +546,21 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
   function delQ(i){ if(questions.length<=1)return; setQuestions(qs=>qs.filter((_,j)=>j!==i)); }
 
   const sel=teams.find(t=>t.id===teamId);
-  const inp={padding:"8px 12px",borderRadius:8,border:`1.5px solid ${T.gray100}`,fontSize:13,color:T.dark,outline:"none",width:"100%",boxSizing:"border-box"};
+  const inp={padding:"10px 14px",borderRadius:10,border:"1px solid rgba(255,255,255,0.15)",
+    fontSize:13,color:"#fff",outline:"none",width:"100%",boxSizing:"border-box",
+    background:"rgba(255,255,255,0.08)",fontFamily:"inherit"};
 
   return (
-    <div style={{minHeight:"100vh",background:"#E8F8F5",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"24px 16px"}}>
-      <div style={{maxWidth:640,margin:"0 auto"}}>
-        <button onClick={onBack} style={{background:"none",border:"none",color:T.teal,fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:16,display:"flex",alignItems:"center",gap:6}}>← Back</button>
-        <div style={{background:T.white,borderRadius:20,padding:28,boxShadow:`0 6px 32px ${T.teal}15`}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-            <h2 style={{margin:0,fontSize:20,fontWeight:900,color:T.tealDark}}>⚙️ Configure Retrospective</h2>
-            
+    <div style={{minHeight:"100vh",background:"#050d14",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"24px 16px",
+      backgroundImage:"radial-gradient(ellipse 80% 60% at 50% -10%, rgba(13,158,158,0.12) 0%, transparent 70%)"}}>
+      <div style={{maxWidth:680,margin:"0 auto"}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:"#7FDADA",fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Back</button>
+        <div style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:20,padding:28,backdropFilter:"blur(16px)",boxShadow:"0 24px 64px rgba(0,0,0,0.4)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:6}}>
+            <LogoIcon size={32}/>
+            <h2 style={{margin:0,fontSize:20,fontWeight:900,color:"#fff"}}>Configure Retrospective</h2>
           </div>
-          <p style={{margin:"0 0 24px",color:T.gray500,fontSize:14}}>Hosting as <strong>{hostName}</strong></p>
+          <p style={{margin:"0 0 24px",color:"rgba(255,255,255,0.5)",fontSize:14}}>Hosting as <strong style={{color:"#7FDADA"}}>{hostName}</strong></p>
 
           {isAdmin&&(
             <div style={{marginBottom:20}}>
@@ -583,24 +586,24 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
 
           {/* Retro Method Picker */}
           <div style={{marginBottom:24}}>
-            <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:12}}>🗂️ Retro Method</div>
+            <div style={{fontWeight:800,fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:12,textTransform:"uppercase",letterSpacing:"0.5px"}}>🗂️ Retro Method</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
               {RETRO_METHODS.map(m=>{
-                const sel=m.id===methodId;
+                const sel2=m.id===methodId;
                 return(
                   <button key={m.id} onClick={()=>setMethodId(m.id)}
                     style={{textAlign:"left",padding:"12px 14px",borderRadius:12,cursor:"pointer",
-                      border:`2px solid ${sel?T.teal:T.gray100}`,
-                      background:sel?T.tealBg:"#fff",
-                      transition:"all .15s"}}>
+                      border:`1.5px solid ${sel2?"#0D9E9E":"rgba(255,255,255,0.1)"}`,
+                      background:sel2?"rgba(13,158,158,0.15)":"rgba(255,255,255,0.04)",
+                      transition:"all .15s",color:"#fff"}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
                       <span style={{fontSize:20}}>{m.emoji}</span>
-                      <span style={{fontWeight:800,fontSize:13,color:sel?T.tealDark:T.dark}}>{m.name}</span>
+                      <span style={{fontWeight:800,fontSize:13,color:sel2?"#7FDADA":"#fff"}}>{m.name}</span>
                     </div>
-                    <div style={{fontSize:11,color:T.gray500,lineHeight:1.4,marginBottom:6}}>{m.desc}</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",lineHeight:1.4,marginBottom:6}}>{m.desc}</div>
                     <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                       {m.columns.map(c=>(
-                        <span key={c.id} style={{background:c.bg,color:c.color,border:`1px solid ${c.color}40`,
+                        <span key={c.id} style={{background:`${c.color}18`,color:c.color,border:`1px solid ${c.color}40`,
                           borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:700}}>
                           {c.emoji} {c.label}
                         </span>
@@ -1061,30 +1064,54 @@ function JoinScreen({ onJoin, roomId }) {
   useEffect(()=>{ if(!roomId)return; fbGet(roomId).then(r=>{ if(r)setIsRevealed(!!r.revealed); }); },[roomId]);
   async function go(){ setLoading(true); await onJoin(name,setError); setLoading(false); }
   return (
-    <div style={{minHeight:"100vh",background:"#E8F8F5",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px"}}>
-      <div style={{width:"100%",maxWidth:460,background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(13,158,158,.12)",padding:"36px 32px"}}>
-        <div style={{textAlign:"center",marginBottom:26}}>
-          <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}>{isRevealed?<span style={{fontSize:46}}>🎉</span>:<LogoIcon size={56}/>}</div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:4}}>
-            <h1 style={{fontSize:22,fontWeight:900,color:"#1a2e2e",margin:0}}>{isRevealed?"View Results":"You're invited!"}</h1>
-            
+    <div style={{minHeight:"100vh",background:"#050d14",display:"flex",flexDirection:"column",
+      alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px",
+      backgroundImage:"radial-gradient(ellipse 70% 50% at 50% 0%, rgba(13,158,158,0.15) 0%, transparent 70%)"}}>
+      <div style={{width:"100%",maxWidth:460,
+        background:"rgba(255,255,255,0.05)",
+        border:"1px solid rgba(255,255,255,0.1)",
+        backdropFilter:"blur(16px)",
+        borderRadius:24,boxShadow:"0 24px 64px rgba(0,0,0,0.5)",padding:"40px 36px"}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{marginBottom:12,display:"flex",justifyContent:"center"}}>
+            {isRevealed?<span style={{fontSize:50}}>🎉</span>:<LogoIcon size={60}/>}
           </div>
-          <p style={{color:"#7a9a9a",margin:0,fontSize:14}}>{isRevealed?"Session complete — enter your name to view.":"Enter your name to join."}</p>
+          <h1 style={{fontSize:24,fontWeight:900,color:"#fff",margin:"0 0 8px"}}>
+            {isRevealed?"View Results":"You're invited!"}
+          </h1>
+          <p style={{color:"rgba(255,255,255,0.5)",margin:0,fontSize:14,lineHeight:1.5}}>
+            {isRevealed?"Session complete — enter your name to view.":"Enter your name to join the retrospective."}
+          </p>
         </div>
-        {isRevealed&&<div style={{background:"#E6F7F7",border:"1.5px solid #7FDADA",borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:T.tealDark,fontWeight:600}}>👁️ Read-only — results are visible to everyone.</div>}
-        <div style={{position:"relative"}}>
-          <input value={name} onChange={e=>{setName(e.target.value.slice(0,MAX));setError("");}} onKeyDown={e=>e.key==="Enter"&&go()}
+        {isRevealed&&(
+          <div style={{background:"rgba(13,158,158,0.12)",border:"1px solid rgba(13,158,158,0.3)",
+            borderRadius:12,padding:"10px 14px",marginBottom:20,fontSize:13,color:"#7FDADA",fontWeight:600,textAlign:"center"}}>
+            👁️ Read-only — results are visible to everyone.
+          </div>
+        )}
+        <div style={{position:"relative",marginBottom:4}}>
+          <input value={name} onChange={e=>{setName(e.target.value.slice(0,MAX));setError("");}}
+            onKeyDown={e=>e.key==="Enter"&&go()}
             placeholder="Your name" autoFocus maxLength={MAX}
-            style={{width:"100%",padding:"12px 16px",borderRadius:12,border:"1.5px solid #DDE8E8",fontSize:15,color:"#0A2020",outline:"none",boxSizing:"border-box"}}/>
-          <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:11,color:name.length>=MAX?"#F07030":T.gray300}}>{name.length}/{MAX}</span>
+            style={{width:"100%",padding:"14px 16px",borderRadius:12,
+              background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",
+              fontSize:15,color:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+          <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",
+            fontSize:11,color:name.length>=MAX?"#F07030":"rgba(255,255,255,0.3)"}}>{name.length}/{MAX}</span>
         </div>
-        {error&&<div style={{color:"#F07030",fontSize:13,marginTop:6}}>{error}</div>}
+        {error&&<div style={{color:"#FB923C",fontSize:13,marginTop:6,marginBottom:4}}>{error}</div>}
         <button onClick={go} disabled={loading}
-          style={{marginTop:14,width:"100%",background:isRevealed?T.teal:T.orange,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer",opacity:loading?.7:1}}>
+          style={{marginTop:14,width:"100%",
+            background:isRevealed?"linear-gradient(135deg,#0D9E9E,#076F6F)":"linear-gradient(135deg,#F07030,#C05020)",
+            color:"#fff",border:"none",borderRadius:14,padding:"14px 0",
+            fontWeight:700,fontSize:15,cursor:"pointer",opacity:loading?.7:1,
+            boxShadow:isRevealed?"0 6px 24px rgba(13,158,158,0.35)":"0 6px 24px rgba(240,112,48,0.35)"}}>
           {loading?"Loading…":isRevealed?"👁️ View Results →":"Join Retrospective →"}
         </button>
       </div>
-      <div style={{marginTop:18,color:"#7a9a9a",fontSize:13}}>Built by <span style={{color:T.teal,fontWeight:700}}>Hakan</span></div>
+      <div style={{marginTop:20,color:"rgba(255,255,255,0.25)",fontSize:13}}>
+        Built by <span style={{color:"#0D9E9E",fontWeight:700}}>Hakan</span>
+      </div>
     </div>
   );
 }
@@ -1254,8 +1281,11 @@ export default function App() {
   const isDark = !!themeUrl;
   const zContent = { position:"relative", zIndex:2 };
 
-  const base={minHeight:"100vh",background:isDark?"transparent":"#E8F8F5",fontFamily:"'Segoe UI',system-ui,sans-serif",color:isDark?"#e0f0f0":T.dark,position:"relative",zIndex:2};
-  const card=(ex={})=>({background:isDark?"rgba(10,20,20,0.75)":"#fff",borderRadius:20,padding:24,boxShadow:isDark?`0 6px 32px rgba(0,0,0,.5)`:`0 6px 32px ${T.teal}15`,backdropFilter:isDark?"blur(8px)":"none",...ex});
+  // Semi-dark for work screens (input/waiting) — not fully dark, readable
+  const base={minHeight:"100vh",background:isDark?"transparent":"#0d1a1a",fontFamily:"'Segoe UI',system-ui,sans-serif",color:"#e0f0f0",position:"relative",zIndex:2};
+  const card=(ex={})=>({background:"rgba(255,255,255,0.07)",borderRadius:20,padding:24,
+    border:"1px solid rgba(255,255,255,0.1)",backdropFilter:"blur(12px)",
+    boxShadow:"0 8px 32px rgba(0,0,0,0.3)",...ex});
   const btn=(bg,color=T.white,ex={})=>({background:bg,color,border:"none",borderRadius:12,padding:"10px 20px",fontWeight:700,fontSize:14,cursor:"pointer",...ex});
 
   function Topbar(){
@@ -1449,7 +1479,7 @@ export default function App() {
     const sorted=[...boardCards].sort((a,b)=>totalReactions(b)-totalReactions(a));
     return(
       <><ThemeBackground url={themeUrl}/>
-      <div style={base}>
+      <div style={{...base, background:isDark?"transparent":"#F0F6F6", color:T.dark}}>
         <div style={{background:`linear-gradient(135deg,${T.tealDark},${T.teal})`,padding:"14px 24px",display:"flex",alignItems:"center",gap:14,boxShadow:`0 4px 20px ${T.teal}40`}}>
           <LogoIcon size={36}/>
           <div>
@@ -1470,11 +1500,11 @@ export default function App() {
           </div>
         </div>
         <div style={{maxWidth:1200,margin:"0 auto",padding:"22px 16px 60px"}}>
-          <div style={card({marginBottom:24})}>
+          <div style={{...card({marginBottom:24}),background:"#fff",border:"none",boxShadow:"0 4px 20px rgba(0,0,0,0.08)"}}>
             <h2 style={{fontSize:16,fontWeight:800,color:T.tealDark,marginTop:0,marginBottom:16}}>📊 Team Scores</h2>
             <ScoresSummary participants={room.participants||{}} questions={questions}/>
           </div>
-          <div style={card({padding:20})}>
+          <div style={{...card({padding:20}),background:"#fff",border:"none",boxShadow:"0 4px 20px rgba(0,0,0,0.08)"}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
               <h2 style={{fontSize:16,fontWeight:800,color:T.tealDark,margin:0}}>🗒️ Team Board</h2>
               <span style={{fontSize:12,color:T.gray300}}>Drag cards · React with emojis · Double-click to add action</span>
