@@ -564,19 +564,25 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
 
           {isAdmin&&(
             <div style={{marginBottom:20}}>
-              <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:8}}>📝 Session Name <span style={{color:T.gray300,fontWeight:400,fontSize:12}}>(optional)</span></div>
-              <input value={sessionName} onChange={e=>setSessionName(e.target.value)} placeholder="e.g. Sprint 42 Retro…" style={{...inp,fontSize:14,padding:"10px 14px"}}/>
+              <div style={{fontWeight:800,fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.5px"}}>📝 Session Name <span style={{color:"rgba(255,255,255,0.3)",fontWeight:400,fontSize:11,textTransform:"none"}}>(optional)</span></div>
+              <input value={sessionName} onChange={e=>setSessionName(e.target.value)} placeholder="e.g. Sprint 42 Retro…" style={{...inp,fontSize:14}}/>
             </div>
           )}
 
           {isAdmin&&teams.length>0&&(
             <div style={{marginBottom:20}}>
-              <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:10}}>👥 Team (optional)</div>
+              <div style={{fontWeight:800,fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px"}}>👥 Team (optional)</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <button onClick={()=>setTeamId("")} style={{padding:"7px 14px",borderRadius:10,border:`2px solid ${!teamId?T.teal:T.gray100}`,background:!teamId?T.tealBg:"#fff",color:!teamId?T.tealDark:T.gray500,fontWeight:700,fontSize:13,cursor:"pointer"}}>No Team</button>
+                <button onClick={()=>setTeamId("")} style={{padding:"7px 14px",borderRadius:10,
+                  border:`1.5px solid ${!teamId?"#0D9E9E":"rgba(255,255,255,0.12)"}`,
+                  background:!teamId?"rgba(13,158,158,0.2)":"rgba(255,255,255,0.05)",
+                  color:!teamId?"#7FDADA":"rgba(255,255,255,0.5)",fontWeight:700,fontSize:13,cursor:"pointer"}}>No Team</button>
                 {teams.map(t=>(
                   <button key={t.id} onClick={()=>setTeamId(t.id)}
-                    style={{padding:"7px 14px",borderRadius:10,border:`2px solid ${teamId===t.id?T.teal:T.gray100}`,background:teamId===t.id?T.tealBg:"#fff",color:teamId===t.id?T.tealDark:T.gray500,fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                    style={{padding:"7px 14px",borderRadius:10,
+                      border:`1.5px solid ${teamId===t.id?"#0D9E9E":"rgba(255,255,255,0.12)"}`,
+                      background:teamId===t.id?"rgba(13,158,158,0.2)":"rgba(255,255,255,0.05)",
+                      color:teamId===t.id?"#7FDADA":"rgba(255,255,255,0.5)",fontWeight:700,fontSize:13,cursor:"pointer"}}>
                     {t.name}
                   </button>
                 ))}
@@ -616,39 +622,61 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
           </div>
 
           <div style={{marginBottom:20}}>
-            <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:12}}>📊 Questions ({questions.length}/5)</div>
+            <div style={{fontWeight:800,fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:12,textTransform:"uppercase",letterSpacing:"0.5px"}}>📊 Questions ({questions.length}/5)</div>
             {questions.map((q,i)=>(
-              <div key={q.id} style={{background:T.gray50,borderRadius:12,padding:14,marginBottom:10,border:`1.5px solid ${T.gray100}`}}>
+              <div key={q.id} style={{background:"rgba(255,255,255,0.06)",borderRadius:12,padding:14,marginBottom:10,border:"1px solid rgba(255,255,255,0.12)"}}>
                 <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
                   <span style={{background:T.teal,color:"#fff",borderRadius:8,width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,flexShrink:0}}>{i+1}</span>
                   <input value={q.label} onChange={e=>updateQ(i,"label",e.target.value)} style={{...inp,fontWeight:700,fontSize:14,flex:1}}/>
-                  {questions.length>1&&<button onClick={()=>delQ(i)} style={{background:"none",border:"none",color:T.gray300,cursor:"pointer",fontSize:20,lineHeight:1}}>×</button>}
+                  {questions.length>1&&<button onClick={()=>delQ(i)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.3)",cursor:"pointer",fontSize:20,lineHeight:1}}>×</button>}
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:8}}>
-                  <div><div style={{fontSize:11,color:T.gray500,marginBottom:3}}>Low</div><input value={q.low} onChange={e=>updateQ(i,"low",e.target.value)} style={inp}/></div>
-                  <div><div style={{fontSize:11,color:T.gray500,marginBottom:3}}>High</div><input value={q.high} onChange={e=>updateQ(i,"high",e.target.value)} style={inp}/></div>
-                  <div><div style={{fontSize:11,color:T.gray500,marginBottom:3}}>Scale</div>
-                    <select value={q.scale||5} onChange={e=>updateQ(i,"scale",parseInt(e.target.value))} style={{...inp,width:70}}>
-                      {[3,4,5].map(n=><option key={n} value={n}>1–{n}</option>)}
+                  <div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginBottom:3}}>Low</div>
+                    <input value={q.low} onChange={e=>updateQ(i,"low",e.target.value)} style={inp}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginBottom:3}}>High</div>
+                    <input value={q.high} onChange={e=>updateQ(i,"high",e.target.value)} style={inp}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginBottom:3}}>Scale</div>
+                    <select value={q.scale||5} onChange={e=>updateQ(i,"scale",parseInt(e.target.value))}
+                      style={{...inp,width:70,background:"rgba(255,255,255,0.08)"}}>
+                      {[3,4,5].map(n=><option key={n} value={n} style={{background:"#0d1a2a",color:"#fff"}}>1–{n}</option>)}
                     </select>
                   </div>
                 </div>
               </div>
             ))}
-            {questions.length<5&&<button onClick={addQ} style={{width:"100%",padding:"10px",borderRadius:10,border:`2px dashed ${T.gray100}`,background:"none",color:T.gray500,fontWeight:700,fontSize:13,cursor:"pointer"}}>+ Add Question (max 5)</button>}
+            {questions.length<5&&(
+              <button onClick={addQ}
+                style={{width:"100%",padding:"10px",borderRadius:10,
+                  border:"2px dashed rgba(255,255,255,0.15)",
+                  background:"none",color:"rgba(255,255,255,0.4)",
+                  fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                + Add Question (max 5)
+              </button>
+            )}
           </div>
 
-          <div style={{borderTop:`1.5px solid ${T.gray100}`,paddingTop:18,marginBottom:20}}>
-            <label style={{display:"flex",alignItems:"center",gap:12,cursor:"pointer",padding:"12px 14px",background:T.gray50,borderRadius:10,border:`1.5px solid ${T.gray100}`}}>
-              <div onClick={()=>setAllow3(v=>!v)} style={{width:42,height:24,borderRadius:12,position:"relative",cursor:"pointer",flexShrink:0,background:allow3?T.teal:T.gray100,transition:"background .2s"}}>
-                <div style={{position:"absolute",top:3,left:allow3?21:3,width:18,height:18,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,.2)",transition:"left .2s"}}/>
+          <div style={{borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:18,marginBottom:20}}>
+            <label style={{display:"flex",alignItems:"center",gap:12,cursor:"pointer",padding:"12px 14px",
+              background:"rgba(255,255,255,0.05)",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)"}}>
+              <div onClick={()=>setAllow3(v=>!v)} style={{width:42,height:24,borderRadius:12,position:"relative",cursor:"pointer",flexShrink:0,background:allow3?T.teal:"rgba(255,255,255,0.15)",transition:"background .2s"}}>
+                <div style={{position:"absolute",top:3,left:allow3?21:3,width:18,height:18,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,.3)",transition:"left .2s"}}/>
               </div>
-              <div><div style={{fontWeight:700,fontSize:13,color:T.dark}}>Allow score 3</div><div style={{fontSize:11,color:T.gray500}}>By default 3 is disabled to avoid middle-ground answers</div></div>
+              <div>
+                <div style={{fontWeight:700,fontSize:13,color:"#fff"}}>Allow score 3</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>By default 3 is disabled to avoid middle-ground answers</div>
+              </div>
             </label>
           </div>
 
           <button onClick={()=>onCreate(questions,allow3,teamId,sel?.name||"",sessionName.trim(),methodId)}
-            style={{width:"100%",background:T.orange,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:16,cursor:"pointer"}}>
+            style={{width:"100%",background:"linear-gradient(135deg,#0D9E9E,#076F6F)",color:"#fff",
+              border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer",
+              boxShadow:"0 6px 24px rgba(13,158,158,0.35)"}}>
             🚀 Create Session & Get Link →
           </button>
         </div>
