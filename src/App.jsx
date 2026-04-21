@@ -656,8 +656,7 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName="" }) {
   const [hostName,setHostName]=useState(prefilledName.slice(0,15));
-  const [joinId,setJoinId]=useState(""); const [joinName,setJoinName]=useState("");
-  const [joinOpen,setJoinOpen]=useState(false); const [howOpen,setHowOpen]=useState(false);
+  const [howOpen,setHowOpen]=useState(false);
   const [error,setError]=useState("");
   const MAX=15;
   const inp={width:"100%",padding:"12px 16px",borderRadius:12,border:`1.5px solid #DDE8E8`,fontSize:15,color:T.dark,outline:"none",boxSizing:"border-box",background:"#fff"};
@@ -681,31 +680,11 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
               onChange={e=>{setHostName(e.target.value.slice(0,MAX));setError("");}} autoFocus/>
             <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:11,color:hostName.length>=MAX?"#F07030":T.gray300}}>{hostName.length}/{MAX}</span>
           </div>
-          {error&&!joinOpen&&<div style={{color:T.orange,fontSize:13,marginTop:8}}>{error}</div>}
+          {error&&<div style={{color:T.orange,fontSize:13,marginTop:8}}>{error}</div>}
           <button onClick={()=>{if(!hostName.trim()){setError("Please enter your name");return;}onSetup(hostName.trim());}}
             style={{marginTop:12,width:"100%",background:"#E8A870",color:"#fff",border:"none",borderRadius:14,padding:"13px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>
             Configure & Create Session →
           </button>
-        </div>
-
-        <div style={{border:`1.5px solid ${T.gray100}`,borderRadius:16,overflow:"hidden",marginBottom:10}}>
-          <button onClick={()=>setJoinOpen(o=>!o)} style={{width:"100%",background:"#fff",border:"none",padding:"14px 20px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",fontWeight:700,fontSize:14,color:"#2a5a5a"}}>
-            <span>👥</span><span>Join with Room ID</span>
-            <span style={{marginLeft:"auto",color:T.gray300,fontSize:18,transform:joinOpen?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>›</span>
-          </button>
-          {joinOpen&&(
-            <div style={{padding:"0 20px 18px",borderTop:`1px solid ${T.gray100}`,background:"#fafefe"}}>
-              <input style={{...inp,marginTop:14,marginBottom:8}} placeholder="Room ID or paste link" value={joinId} onChange={e=>setJoinId(e.target.value)}/>
-              <div style={{position:"relative",marginBottom:10}}>
-                <input style={inp} placeholder="Your name" value={joinName} maxLength={MAX}
-                  onChange={e=>{setJoinName(e.target.value.slice(0,MAX));setError("");}}
-                  onKeyDown={e=>{if(e.key==="Enter")onJoin(joinId,joinName,setError);}}/>
-                <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:11,color:joinName.length>=MAX?"#F07030":T.gray300}}>{joinName.length}/{MAX}</span>
-              </div>
-              {error&&joinOpen&&<div style={{color:T.orange,fontSize:13,marginBottom:8}}>{error}</div>}
-              <button onClick={()=>onJoin(joinId,joinName,setError)} style={{width:"100%",background:T.teal,color:"#fff",border:"none",borderRadius:14,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>🔗 Join Session</button>
-            </div>
-          )}
         </div>
 
         <div style={{border:`1.5px solid ${T.gray100}`,borderRadius:16,overflow:"hidden",marginBottom:10}}>
@@ -716,15 +695,15 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
           {howOpen&&(
             <div style={{padding:"4px 20px 16px",borderTop:`1px solid ${T.gray100}`,background:"#fafefe"}}>
               {[
-                ["🚀","Create","Configure questions and get a shareable link."],
-                ["🔗","Share","Team opens the link — no sign-up needed."],
-                ["🗒️","Post-its","Add cards to the shared board in real-time. Choose Stop 🔴 / Start 🟢 / Continue 🔵 for each."],
-                ["📊","Rate","Rate team health questions (mood, stress, role)."],
-                ["✅","Submit","Submit your scores. Post-its are already visible to everyone."],
-                ["🎉","Reveal","Host reveals scores — everyone sees the results."],
-                ["👍","React","React to cards with 👍👎❤️🔥💡 — most reacted float to top."],
-                ["⚡","Actions","Double-click a card to add an action item."],
-                ["📥","PDF","Download full PDF of results."],
+                ["🚀","Create a session","Enter your name, configure health questions and choose your retro method (Stop/Start/Continue, Mad/Sad/Glad, Sailboat, Starfish, 4Ls, DAKI)."],
+                ["🔗","Share the link","Copy the session link and send it to your team. No sign-up needed — they just open the link and enter their name."],
+                ["🗒️","Add post-its","Everyone adds cards to the shared board in real-time. Each card belongs to a category in your chosen method (e.g. Stop 🔴, Start 🟢, Continue 🔵)."],
+                ["📊","Rate health questions","Privately score team health questions like mood, stress, and role satisfaction on a 1–5 scale."],
+                ["✅","Submit","Submit your scores when ready. Post-its are visible to everyone throughout the session."],
+                ["🎉","Host reveals","When everyone is done, the host reveals the scores. All results appear on the shared board."],
+                ["👍","React & vote","React to post-its with 👍👎❤️🔥💡. Cards with the most reactions float to the top."],
+                ["⚡","Add actions","Double-click any post-it to add an action item with assignee and due date."],
+                ["📥","Export PDF","Download a full PDF report of scores and post-its, grouped by category."],
               ].map(([icon,title,desc])=>(
                 <div key={title} style={{display:"flex",gap:12,padding:"8px 0",borderBottom:`1px solid ${T.gray50}`}}>
                   <div style={{fontSize:15,width:26,flexShrink:0,marginTop:2}}>{icon}</div>
