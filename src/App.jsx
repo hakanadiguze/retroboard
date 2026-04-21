@@ -728,6 +728,8 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
     document.head.appendChild(style);
     return ()=>{ document.head.removeChild(style); };
   },[]);
+
+  const inputStyle = {
     width:"100%", padding:"14px 18px", borderRadius:12,
     background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)",
     color:D.white, fontSize:16, outline:"none", boxSizing:"border-box",
