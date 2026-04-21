@@ -554,7 +554,7 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
         <div style={{background:T.white,borderRadius:20,padding:28,boxShadow:`0 6px 32px ${T.teal}15`}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
             <h2 style={{margin:0,fontSize:20,fontWeight:900,color:T.tealDark}}>⚙️ Configure Retrospective</h2>
-            <span style={{background:T.tealBg,color:T.tealDark,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>{VERSION}</span>
+            
           </div>
           <p style={{margin:"0 0 24px",color:T.gray500,fontSize:14}}>Hosting as <strong>{hostName}</strong></p>
 
@@ -748,8 +748,6 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:22}}>🔄</span>
             <span style={{fontSize:17,fontWeight:900}}>RetroBoard</span>
-            <span style={{background:"linear-gradient(135deg,#0D9E9E,#076F6F)",color:"#fff",
-              borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>{VERSION}</span>
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:10,alignItems:"center"}}>
             {adminUser ? (
@@ -758,14 +756,15 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
                   border:"1px solid rgba(13,158,158,0.3)",color:"#7FDADA",borderRadius:10,
                   padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13}}>
                 <img src={adminUser.photoURL} alt="" style={{width:20,height:20,borderRadius:"50%"}}/>
-                Admin Panel
+                Dashboard →
               </button>
             ) : (
               <button onClick={onAdminLogin}
-                style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.12)",
-                  color:"rgba(255,255,255,0.7)",borderRadius:10,padding:"8px 16px",
-                  cursor:"pointer",fontWeight:600,fontSize:13}}>
-                🔐 Admin
+                style={{background:"linear-gradient(135deg,#0D9E9E,#076F6F)",
+                  border:"none",color:"#fff",borderRadius:10,padding:"8px 20px",
+                  cursor:"pointer",fontWeight:700,fontSize:13,
+                  boxShadow:"0 4px 16px rgba(13,158,158,0.3)"}}>
+                Login →
               </button>
             )}
           </div>
@@ -955,6 +954,60 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
           </div>
         </section>
 
+        {/* ── LOGIN BENEFITS ── */}
+        <section style={{padding:"0 24px 80px",maxWidth:1040,margin:"0 auto"}}>
+          <div style={{background:"linear-gradient(135deg,rgba(13,158,158,0.1),rgba(7,111,111,0.06))",
+            border:"1px solid rgba(13,158,158,0.2)",borderRadius:24,overflow:"hidden"}}>
+            <div style={{display:"flex",flexWrap:"wrap",gap:0}}>
+              {/* Left — text */}
+              <div style={{flex:"1 1 340px",padding:"48px 40px"}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#7FDADA",letterSpacing:"1px",
+                  textTransform:"uppercase",marginBottom:12}}>Admin Login</div>
+                <h2 style={{fontSize:"clamp(22px,3.5vw,34px)",fontWeight:900,margin:"0 0 14px",lineHeight:1.2}}>
+                  More power for<br/>Scrum Masters
+                </h2>
+                <p style={{color:"rgba(255,255,255,0.6)",fontSize:15,lineHeight:1.65,margin:"0 0 28px"}}>
+                  Login with Google to unlock the full admin experience.
+                  Manage your teams, track actions across sprints, and review
+                  historical retros — all from one dashboard.
+                </p>
+                <button onClick={onAdminLogin}
+                  style={{background:"linear-gradient(135deg,#0D9E9E,#076F6F)",color:"#fff",
+                    border:"none",borderRadius:12,padding:"13px 28px",fontWeight:800,fontSize:15,
+                    cursor:"pointer",boxShadow:"0 6px 24px rgba(13,158,158,0.35)"}}>
+                  🔐 Login with Google — Free
+                </button>
+              </div>
+              {/* Right — benefits list */}
+              <div style={{flex:"1 1 300px",padding:"48px 40px",
+                borderLeft:"1px solid rgba(255,255,255,0.06)"}}>
+                <div style={{display:"flex",flexDirection:"column",gap:18}}>
+                  {[
+                    ["🏢","Team management","Create teams and organize sessions under them."],
+                    ["📋","Session history","Every retro stored — go back and review any session."],
+                    ["⚡","Central action tracking","See all open actions across all sessions in one place."],
+                    ["👥","Team-level actions","Manage actions per team across multiple sprints."],
+                    ["📊","Scores & insights","Track team health trends over time."],
+                    ["🎨","Custom themes","Set a background image for your retro environment."],
+                  ].map(([icon,title,desc])=>(
+                    <div key={title} style={{display:"flex",gap:14,alignItems:"flex-start"}}>
+                      <div style={{width:36,height:36,borderRadius:10,flexShrink:0,
+                        background:"rgba(13,158,158,0.15)",border:"1px solid rgba(13,158,158,0.2)",
+                        display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>
+                        {icon}
+                      </div>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13,marginBottom:2}}>{title}</div>
+                        <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",lineHeight:1.5}}>{desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ── HOW IT WORKS ── */}
         <section style={{padding:"0 24px 80px",maxWidth:760,margin:"0 auto"}}>
           <div style={{textAlign:"center",fontSize:11,fontWeight:700,color:"#7FDADA",
@@ -995,9 +1048,7 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
         <footer style={{textAlign:"center",padding:"28px 24px",
           color:"rgba(255,255,255,0.2)",fontSize:13,
           borderTop:"1px solid rgba(255,255,255,0.06)"}}>
-          RetroBoard{" "}
-          <span style={{color:"#0D9E9E",fontWeight:700}}>{VERSION}</span>
-          {" "}· Built with ❤️ for agile teams
+          RetroBoard · Built with ❤️ for agile teams
         </footer>
 
       </div>
@@ -1018,7 +1069,7 @@ function JoinScreen({ onJoin, roomId }) {
           <div style={{fontSize:46,marginBottom:8}}>{isRevealed?"🎉":"🔄"}</div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:4}}>
             <h1 style={{fontSize:22,fontWeight:900,color:"#1a2e2e",margin:0}}>{isRevealed?"View Results":"You're invited!"}</h1>
-            <span style={{background:T.tealBg,color:T.tealDark,borderRadius:6,padding:"2px 7px",fontSize:11,fontWeight:800}}>{VERSION}</span>
+            
           </div>
           <p style={{color:"#7a9a9a",margin:0,fontSize:14}}>{isRevealed?"Session complete — enter your name to view.":"Enter your name to join."}</p>
         </div>
@@ -1035,7 +1086,7 @@ function JoinScreen({ onJoin, roomId }) {
           {loading?"Loading…":isRevealed?"👁️ View Results →":"Join Retrospective →"}
         </button>
       </div>
-      <div style={{marginTop:18,color:"#7a9a9a",fontSize:13}}>Built by <span style={{color:T.teal,fontWeight:700}}>Hakan</span> · RetroBoard {VERSION}</div>
+      <div style={{marginTop:18,color:"#7a9a9a",fontSize:13}}>Built by <span style={{color:T.teal,fontWeight:700}}>Hakan</span></div>
     </div>
   );
 }
@@ -1218,7 +1269,7 @@ export default function App() {
           <div>
             <div style={{fontWeight:800,fontSize:15,color:T.tealDark,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
               {room?.sessionName||"RetroBoard"}
-              <span style={{background:T.tealBg,color:T.tealDark,borderRadius:6,padding:"1px 6px",fontSize:10,fontWeight:800}}>{VERSION}</span>
+              
               {room?.method&&(
                 <span style={{background:"#F0F0FF",color:"#818CF8",borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:700}}>
                   {getMethod(room.method).emoji} {getMethod(room.method).name}
@@ -1406,7 +1457,7 @@ export default function App() {
           <div>
             <div style={{color:"#fff",fontWeight:900,fontSize:19,display:"flex",alignItems:"center",gap:8}}>
               {room.sessionName||"RetroBoard Results"}
-              <span style={{background:"rgba(255,255,255,.2)",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>{VERSION}</span>
+              
             </div>
             <div style={{color:T.tealLight,fontSize:12}}>Room {room.id}{room.teamName?` · ${room.teamName}`:""} · {Object.values(room.participants||{}).filter(p=>p.submitted).length} participants</div>
           </div>
