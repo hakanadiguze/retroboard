@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAllRooms, getAllRoomsAll, getAllTeams, getAllUsers, saveTeam, deleteTeam, deleteRoom, signOutUser, uid, nowISO, SUPERADMIN_EMAIL } from "./firebase.js";
+import { getRoomMethod, RETRO_METHODS } from "./methods.js";
 
 const T = {
   teal:"#0D9E9E", tealDark:"#076F6F", tealLight:"#7FDADA", tealBg:"#E6F7F7",
@@ -9,9 +10,6 @@ const T = {
   gray500:"#5A7878", gray700:"#2D4A4A", dark:"#0A2020",
 };
 const SCORE_COLORS = ["#0D9E9E","#F07030","#8B5CF6","#EC4899","#10B981"];
-const COL_COLORS   = { Stop:"#FF6B6B", Start:"#34D399", Continue:"#60A5FA" };
-const COL_BG       = { Stop:"#FFF5F5", Start:"#F0FFF8", Continue:"#EFF6FF" };
-const COLUMNS      = ["Stop","Start","Continue"];
 const REACTIONS    = ["👍","👎","❤️","🔥","💡"];
 
 function totalReactions(card) {
@@ -129,67 +127,67 @@ function RetroDetail({ room, onClose }) {
               )}
             </>
           )}
-          {/* Board — post-it style list grouped by column */}
+          {/* Board — post-it style grouped by method columns */}
           <h3 style={{margin:"0 0 12px",color:T.tealDark,fontSize:15,fontWeight:800}}>🗒️ Board</h3>
-          {COLUMNS.map(col=>{
-            const c=COL_COLORS[col];
-            const bg=COL_BG[col];
-            const colCards=(room.boardEntries||[]).filter(e=>e.column===col)
-              .sort((a,b)=>totalReactions(b)-totalReactions(a));
-            if(!colCards.length) return null;
-            return(
-              <div key={col} style={{marginBottom:20}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                  <div style={{width:12,height:12,borderRadius:3,background:c}}/>
-                  <span style={{fontWeight:800,fontSize:14,color:c}}>{col}</span>
-                  <span style={{background:`${c}20`,color:c,borderRadius:8,padding:"1px 8px",fontSize:11,fontWeight:700}}>{colCards.length}</span>
-                </div>
-                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-                  {colCards.map(card=>{
-                    const rx=totalReactions(card);
-                    const rxText=REACTIONS.filter(r=>card.reactions?.[r]&&Object.keys(card.reactions[r]).length>0)
-                      .map(r=>`${r}${Object.keys(card.reactions[r]).length}`).join(" ");
-                    return(
-                      <div key={card.id} style={{width:160,background:bg,borderRadius:4,
-                        boxShadow:`2px 2px 8px rgba(0,0,0,.12),inset 0 -3px 0 ${c}50`,
-                        borderTop:`4px solid ${c}`,padding:"10px 10px 8px",position:"relative",flexShrink:0}}>
-                        {rx>0&&(
-                          <div style={{position:"absolute",top:-8,right:-8,background:c,color:"#fff",borderRadius:"50%",
-                            width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800}}>
-                            {rx}
+          {(() => {
+            const method = getRoomMethod(room);
+            return method.columns.map(colDef=>{
+              const c=colDef.color;
+              const bg=colDef.bg;
+              const colCards=(room.boardEntries||[]).filter(e=>e.column===colDef.id)
+                .sort((a,b)=>totalReactions(b)-totalReactions(a));
+              if(!colCards.length) return null;
+              return(
+                <div key={colDef.id} style={{marginBottom:20}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                    <span style={{fontSize:16}}>{colDef.emoji}</span>
+                    <span style={{fontWeight:800,fontSize:14,color:c}}>{colDef.label}</span>
+                    <span style={{background:`${c}20`,color:c,borderRadius:8,padding:"1px 8px",fontSize:11,fontWeight:700}}>{colCards.length}</span>
+                  </div>
+                  <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                    {colCards.map(card=>{
+                      const rx=totalReactions(card);
+                      const rxText=REACTIONS.filter(r=>card.reactions?.[r]&&Object.keys(card.reactions[r]).length>0)
+                        .map(r=>`${r}${Object.keys(card.reactions[r]).length}`).join(" ");
+                      return(
+                        <div key={card.id} style={{width:160,background:bg,borderRadius:4,
+                          boxShadow:`2px 2px 8px rgba(0,0,0,.12),inset 0 -3px 0 ${c}50`,
+                          borderTop:`4px solid ${c}`,padding:"10px 10px 8px",position:"relative",flexShrink:0}}>
+                          {rx>0&&(
+                            <div style={{position:"absolute",top:-8,right:-8,background:c,color:"#fff",borderRadius:"50%",
+                              width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800}}>
+                              {rx}
+                            </div>
+                          )}
+                          <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:5}}>
+                            <span style={{background:c,color:"#fff",borderRadius:5,padding:"1px 6px",fontSize:8,fontWeight:800}}>{colDef.emoji} {colDef.label}</span>
+                            <span style={{fontSize:9,color:T.gray500,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{card.participantName}</span>
                           </div>
-                        )}
-                        <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:5}}>
-                          <span style={{background:c,color:"#fff",borderRadius:5,padding:"1px 6px",fontSize:8,fontWeight:800}}>{col}</span>
-                          <span style={{fontSize:9,color:T.gray500,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{card.participantName}</span>
+                          <div style={{fontSize:12,color:"#333",lineHeight:1.4,marginBottom:rxText?5:0,wordBreak:"break-word"}}>{card.text}</div>
+                          {rxText&&<div style={{fontSize:10,color:T.gray500,marginBottom:4}}>{rxText}</div>}
+                          {(card.actions||[]).length>0&&(
+                            <div style={{borderTop:`1px solid ${c}30`,paddingTop:4,marginTop:4}}>
+                              <div style={{fontSize:9,fontWeight:800,color:c,marginBottom:2}}>ACTIONS</div>
+                              {(card.actions||[]).map((a,i)=>{
+                                const text=typeof a==="object"?a.text:a;
+                                const isDone=typeof a==="object"&&a.status==="done";
+                                const who=typeof a==="object"&&a.assignee?a.assignee:null;
+                                return(
+                                  <div key={i} style={{fontSize:10,color:isDone?T.gray300:T.gray700,textDecoration:isDone?"line-through":"none"}}>
+                                    {isDone?"✓":"⚡"} {text}{who&&<span style={{color:T.gray300}}> @{who}</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                        <div style={{fontSize:12,color:"#333",lineHeight:1.4,marginBottom:rxText?5:0,wordBreak:"break-word"}}>{card.text}</div>
-                        {rxText&&<div style={{fontSize:10,color:T.gray500,marginBottom:4}}>{rxText}</div>}
-                        {(card.actions||[]).length>0&&(
-                          <div style={{borderTop:`1px solid ${c}30`,paddingTop:4,marginTop:4}}>
-                            <div style={{fontSize:9,fontWeight:800,color:c,marginBottom:2}}>ACTIONS</div>
-                            {(card.actions||[]).map((a,i)=>{
-                              const text=typeof a==="object"?a.text:a;
-                              const isDone=typeof a==="object"&&a.status==="done";
-                              const who=typeof a==="object"&&a.assignee?a.assignee:null;
-                              const due=typeof a==="object"&&a.dueDate?a.dueDate:null;
-                              return(
-                                <div key={i} style={{fontSize:10,color:isDone?T.gray300:T.gray700,marginBottom:2,textDecoration:isDone?"line-through":"none"}}>
-                                  {isDone?"✓":"⚡"} {text}
-                                  {who&&<span style={{color:T.gray300}}> @{who}</span>}
-                                  {due&&<span style={{color:T.gray300}}> · {due}</span>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </div>
     </div>
@@ -353,6 +351,11 @@ function SessionRow({ room, onView, onDelete, onRejoin, onActions }) {
           <span style={{fontWeight:room.sessionName?400:800,fontSize:room.sessionName?12:13,color:room.sessionName?T.gray500:T.dark,fontFamily:"monospace"}}>
             {room.sessionName?"(":""}#{room.id}{room.sessionName?")":""}
           </span>
+          {room.method&&room.method!=="ssc"&&(
+            <span style={{background:"#F0F0FF",color:"#818CF8",borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:700}}>
+              {getRoomMethod(room).emoji} {getRoomMethod(room).name}
+            </span>
+          )}
           <span style={{background:room.revealed?"#D1FAE5":"#FEF3C7",color:room.revealed?"#065F46":"#92400E",borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:700}}>
             {room.revealed?"Completed":"In Progress"}
           </span>

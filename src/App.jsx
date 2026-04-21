@@ -3,6 +3,7 @@ import { onValue, off, update } from "firebase/database";
 import { uid, nowISO, roomRef, fbGet, fbSet, signInWithGoogle, signOutUser, onAuth, getAllTeams, registerUser } from "./firebase.js";
 import AdminPanel from "./Admin.jsx";
 import { ThemeBackground, ThemePicker, getBgUrl, saveBgUrl } from "./themes.jsx";
+import { RETRO_METHODS, getMethod, getColumns, getRoomMethod } from "./methods.js";
 
 const VERSION = "v5";
 
@@ -14,16 +15,7 @@ const T = {
   gray500:"#5A7878", gray700:"#2D4A4A", dark:"#0A2020",
 };
 
-const COL_COLORS = { Stop:"#FF6B6B", Start:"#34D399", Continue:"#60A5FA" };
-const COL_BG     = { Stop:"#FFF5F5", Start:"#F0FFF8", Continue:"#EFF6FF" };
-const COLUMNS    = ["Stop","Start","Continue"];
 const REACTIONS  = ["👍","👎","❤️","🔥","💡"];
-
-const COL_DESC = {
-  Stop:     "What's hurting the team? What should we stop doing?",
-  Start:    "What should we try that we're not doing yet?",
-  Continue: "What's working well and should keep going?",
-};
 
 const DEFAULT_QUESTIONS = [
   { id:"q1", label:"How is your Mood Level?",          low:"😞 Unhappy", high:"😄 Happy", scale:5 },
@@ -92,20 +84,21 @@ async function exportPDF(room) {
 
   // Post-it card dimensions
   const CARD_W=54, CARD_H_BASE=28, COLS_PER_ROW=3, GAP=5;
-  const colColors={ Stop:"#FF6B6B", Start:"#34D399", Continue:"#60A5FA" };
-  const colBgHex={ Stop:"#FFF5F5", Start:"#F0FFF8", Continue:"#EFF6FF" };
+  const methodDef = getRoomMethod(room);
+  const colDefMap = Object.fromEntries(methodDef.columns.map(c=>[c.id,c]));
 
-  for(const col of COLUMNS){
+  for(const colDef of methodDef.columns){
+    const col = colDef.id;
     const colCards=[...(room.boardEntries||[])].filter(c=>c.column===col)
       .sort((a,b)=>totalReactions(b)-totalReactions(a));
     if(!colCards.length) continue;
 
     // Column header bar
     if(y>260){doc.addPage();y=M;}
-    const cc=colColors[col];
+    const cc=colDef.color;
     sf(cc); doc.rect(M,y,cW,7,"F");
     sc(T.white); doc.setFont("helvetica","bold"); doc.setFontSize(10);
-    doc.text(`${col}  (${colCards.length} cards)`,M+3,y+5); y+=10;
+    doc.text(`${colDef.label}  (${colCards.length} cards)`,M+3,y+5); y+=10;
 
     // Cards in rows of COLS_PER_ROW
     let col_i=0;
@@ -146,7 +139,7 @@ async function exportPDF(room) {
       doc.rect(cx+1.5,cy+1.5,CARD_W,CARD_H,"F");
 
       // Card background
-      sf(colBgHex[col]); sd(cc);
+      sf(colDef.bg||"#fffde7"); sd(cc);
       doc.setLineWidth(0.3);
       doc.rect(cx,cy,CARD_W,CARD_H,"FD");
 
@@ -277,13 +270,14 @@ function ScoresSummary({ participants, questions }) {
 }
 
 // ─── PostItCard ───────────────────────────────────────────────────────────────
-function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed }) {
+function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed, colDef }) {
   const [showAction, setShowAction] = useState(false);
   const [actText,    setActText]    = useState("");
   const [assignee,   setAssignee]   = useState("");
   const [dueDate,    setDueDate]    = useState("");
-  const c  = COL_COLORS[card.column]||"#aaa";
-  const bg = COL_BG[card.column]||"#fffde7";
+  // colDef may come from method columns, fallback to card's own column color
+  const c  = colDef?.color || "#aaa";
+  const bg = colDef?.bg    || "#fffde7";
   const rxTotal = totalReactions(card);
   const actions = card.actions||[];
   const openCount = actions.filter(a=>typeof a==="object"?a.status!=="done":true).length;
@@ -403,19 +397,25 @@ function PostItCard({ card, myId, onDragStart, onReact, onAddAction, revealed })
 }
 
 // ─── PostItBoard ──────────────────────────────────────────────────────────────
-function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAddAction, revealed }) {
+function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAddAction, revealed, columns }) {
   const boardRef  = useRef(null);
   const dragCard  = useRef(null);
   const dragOff   = useRef({x:0,y:0});
   const [modal,   setModal]   = useState(null);
   const [newText, setNewText] = useState("");
-  const [newCol,  setNewCol]  = useState("Continue");
+  const [newCol,  setNewCol]  = useState(columns?.[0]?.id || "Continue");
+
+  // Reset default column when method changes
+  useEffect(()=>{ if(columns?.[0]) setNewCol(columns[0].id); },[columns?.[0]?.id]);
 
   const sorted = [...cards].sort((a,b)=>totalReactions(a)-totalReactions(b));
   const BOARD_W = cards.length>0 ? Math.max(600, ...cards.map(c=>(c.x||0)+200)) : 600;
   const BOARD_H = cards.length>0 ? Math.max(500, ...cards.map(c=>(c.y||0)+260)) : 500;
 
-  function openModal(x,y){ setModal({x,y}); setNewText(""); setNewCol("Continue"); }
+  // Build colDef lookup from columns array
+  const colDefMap = Object.fromEntries((columns||[]).map(c=>[c.id, c]));
+
+  function openModal(x,y){ setModal({x,y}); setNewText(""); setNewCol(columns?.[0]?.id||"Continue"); }
 
   function handleBoardDblClick(e){
     if(e.target!==boardRef.current&&!e.target.classList.contains("board-bg")) return;
@@ -449,15 +449,15 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
 
   return (
     <div style={{position:"relative"}}>
-      {/* Legend with descriptions */}
+      {/* Legend with descriptions — dynamic per method */}
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}>
-        {COLUMNS.map(col=>(
-          <div key={col} style={{flex:"1 1 180px",background:COL_BG[col],border:`2px solid ${COL_COLORS[col]}`,borderRadius:12,padding:"10px 14px"}}>
+        {(columns||[]).map(col=>(
+          <div key={col.id} style={{flex:"1 1 160px",background:col.bg,border:`2px solid ${col.color}`,borderRadius:12,padding:"10px 14px"}}>
             <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-              <div style={{width:10,height:10,borderRadius:2,background:COL_COLORS[col],flexShrink:0}}/>
-              <span style={{fontSize:13,fontWeight:800,color:COL_COLORS[col]}}>{col}</span>
+              <span style={{fontSize:15}}>{col.emoji}</span>
+              <span style={{fontSize:13,fontWeight:800,color:col.color}}>{col.label}</span>
             </div>
-            <div style={{fontSize:11,color:T.gray500,lineHeight:1.4}}>{COL_DESC[col]}</div>
+            <div style={{fontSize:11,color:T.gray500,lineHeight:1.4}}>{col.desc}</div>
           </div>
         ))}
       </div>
@@ -471,7 +471,7 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
         {revealed&&<span style={{fontSize:11,color:T.gray500,marginLeft:"auto"}}>Double-click a card to add an action</span>}
       </div>
 
-      {/* Board — fills container, scrolls only if cards overflow */}
+      {/* Board */}
       <div style={{overflowX:"auto",overflowY:"visible",borderRadius:16,border:`1.5px solid ${T.gray100}`}}>
       <div ref={boardRef} className="board-bg"
         onDoubleClick={handleBoardDblClick}
@@ -488,12 +488,13 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
         {sorted.map((card,i)=>(
           <PostItCard key={card.id} card={{...card,z:i+1}} myId={myId}
             onDragStart={handleDragStart} onReact={onReact}
-            onAddAction={onAddAction} revealed={revealed}/>
+            onAddAction={onAddAction} revealed={revealed}
+            colDef={colDefMap[card.column]}/>
         ))}
 
         {/* New card modal */}
         {modal&&(
-          <div style={{position:"absolute",left:Math.min(modal.x, BOARD_H>0?600:modal.x),top:modal.y,width:220,
+          <div style={{position:"absolute",left:Math.min(modal.x,600),top:modal.y,width:240,
             background:"#fff",borderRadius:12,boxShadow:"0 8px 32px rgba(0,0,0,.2)",padding:16,zIndex:9999}}
             onClick={e=>e.stopPropagation()}>
             <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:10}}>New Post-it</div>
@@ -501,19 +502,23 @@ function PostItBoard({ cards, myId, myName, onAddCard, onMoveCard, onReact, onAd
               placeholder="What's on your mind?"
               style={{width:"100%",height:72,padding:"8px",borderRadius:8,border:`1.5px solid ${T.gray100}`,
                 fontSize:13,resize:"none",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
-            <div style={{display:"flex",gap:6,margin:"8px 0"}}>
-              {COLUMNS.map(col=>(
-                <button key={col} onClick={()=>setNewCol(col)}
-                  style={{flex:1,padding:"5px 0",borderRadius:8,border:`2px solid ${newCol===col?COL_COLORS[col]:T.gray100}`,
-                    background:newCol===col?COL_BG[col]:"#fff",color:COL_COLORS[col],fontWeight:700,fontSize:10,cursor:"pointer"}}>
-                  {col}
+            {/* Column picker — dynamic */}
+            <div style={{display:"flex",gap:5,margin:"8px 0",flexWrap:"wrap"}}>
+              {(columns||[]).map(col=>(
+                <button key={col.id} onClick={()=>setNewCol(col.id)}
+                  style={{flex:"1 1 auto",padding:"5px 4px",borderRadius:8,
+                    border:`2px solid ${newCol===col.id?col.color:T.gray100}`,
+                    background:newCol===col.id?col.bg:"#fff",color:col.color,
+                    fontWeight:700,fontSize:10,cursor:"pointer",whiteSpace:"nowrap"}}>
+                  {col.emoji} {col.label}
                 </button>
               ))}
             </div>
             <div style={{display:"flex",gap:6}}>
               <button onClick={submitCard} disabled={!newText.trim()}
-                style={{flex:1,background:COL_COLORS[newCol],color:"#fff",border:"none",borderRadius:8,padding:"8px 0",
-                  fontWeight:700,fontSize:13,cursor:newText.trim()?"pointer":"default",opacity:newText.trim()?1:.5}}>
+                style={{flex:1,background:colDefMap[newCol]?.color||T.teal,color:"#fff",border:"none",
+                  borderRadius:8,padding:"8px 0",fontWeight:700,fontSize:13,
+                  cursor:newText.trim()?"pointer":"default",opacity:newText.trim()?1:.5}}>
                 Post it!
               </button>
               <button onClick={()=>setModal(null)}
@@ -533,6 +538,7 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
   const [allow3,setAllow3]           = useState(false);
   const [teamId,setTeamId]           = useState("");
   const [sessionName,setSessionName] = useState("");
+  const [methodId,setMethodId]       = useState("ssc");
 
   function updateQ(i,f,v){ setQuestions(qs=>qs.map((q,j)=>j===i?{...q,[f]:v}:q)); }
   function addQ(){ if(questions.length>=5)return; setQuestions(qs=>[...qs,{id:`q${uid()}`,label:"New question",low:"Low",high:"High",scale:5}]); }
@@ -574,6 +580,37 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
             </div>
           )}
 
+          {/* Retro Method Picker */}
+          <div style={{marginBottom:24}}>
+            <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:12}}>🗂️ Retro Method</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
+              {RETRO_METHODS.map(m=>{
+                const sel=m.id===methodId;
+                return(
+                  <button key={m.id} onClick={()=>setMethodId(m.id)}
+                    style={{textAlign:"left",padding:"12px 14px",borderRadius:12,cursor:"pointer",
+                      border:`2px solid ${sel?T.teal:T.gray100}`,
+                      background:sel?T.tealBg:"#fff",
+                      transition:"all .15s"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                      <span style={{fontSize:20}}>{m.emoji}</span>
+                      <span style={{fontWeight:800,fontSize:13,color:sel?T.tealDark:T.dark}}>{m.name}</span>
+                    </div>
+                    <div style={{fontSize:11,color:T.gray500,lineHeight:1.4,marginBottom:6}}>{m.desc}</div>
+                    <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                      {m.columns.map(c=>(
+                        <span key={c.id} style={{background:c.bg,color:c.color,border:`1px solid ${c.color}40`,
+                          borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:700}}>
+                          {c.emoji} {c.label}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div style={{marginBottom:20}}>
             <div style={{fontWeight:800,fontSize:14,color:T.dark,marginBottom:12}}>📊 Questions ({questions.length}/5)</div>
             {questions.map((q,i)=>(
@@ -606,7 +643,7 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
             </label>
           </div>
 
-          <button onClick={()=>onCreate(questions,allow3,teamId,sel?.name||"",sessionName.trim())}
+          <button onClick={()=>onCreate(questions,allow3,teamId,sel?.name||"",sessionName.trim(),methodId)}
             style={{width:"100%",background:T.orange,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:16,cursor:"pointer"}}>
             🚀 Create Session & Get Link →
           </button>
@@ -812,10 +849,12 @@ export default function App() {
   }
   function goSetup(name){setSetupName(name);setView("setup");}
 
-  async function handleCreate(questions,allow3,teamId,teamName,sessionName){
+  async function handleCreate(questions,allow3,teamId,teamName,sessionName,methodId="ssc"){
     const id=uid(),pid=uid();
     const r={id,createdAt:nowISO(),hostName:setupName,hostId:pid,revealed:false,allow3:!!allow3,questions,
-      teamId:teamId||"",teamName:teamName||"",sessionName:sessionName||"",createdBy:adminUser?.uid||"",
+      teamId:teamId||"",teamName:teamName||"",sessionName:sessionName||"",
+      method:methodId,
+      createdBy:adminUser?.uid||"",
       participants:{},boardEntries:[],};
     r.participants[pid]={name:setupName,scores:{},submitted:false,joinedAt:nowISO()};
     await fbSet(id,r);
@@ -929,9 +968,14 @@ export default function App() {
         <div style={{display:"flex",alignItems:"center",gap:12,background:T.white,borderRadius:"16px 16px 0 0",padding:"12px 20px",boxShadow:`0 2px 8px ${T.teal}10`}}>
           <div style={{width:34,height:34,borderRadius:10,background:`linear-gradient(135deg,${T.teal},${T.tealDark})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>🔄</div>
           <div>
-            <div style={{fontWeight:800,fontSize:15,color:T.tealDark,display:"flex",alignItems:"center",gap:6}}>
+            <div style={{fontWeight:800,fontSize:15,color:T.tealDark,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
               {room?.sessionName||"RetroBoard"}
               <span style={{background:T.tealBg,color:T.tealDark,borderRadius:6,padding:"1px 6px",fontSize:10,fontWeight:800}}>{VERSION}</span>
+              {room?.method&&(
+                <span style={{background:"#F0F0FF",color:"#818CF8",borderRadius:6,padding:"1px 7px",fontSize:10,fontWeight:700}}>
+                  {getMethod(room.method).emoji} {getMethod(room.method).name}
+                </span>
+              )}
               {room?.teamName&&<span style={{fontSize:12,color:T.gray500,fontWeight:600}}>· {room.teamName}</span>}
             </div>
             <div style={{fontSize:11,color:T.gray300}}>Room: {roomId}</div>
@@ -1035,7 +1079,8 @@ export default function App() {
               cards={boardCards} myId={myId} myName={myName}
               onAddCard={handleAddCard} onMoveCard={handleMoveCard}
               onReact={handleReact} onAddAction={handleAddAction}
-              revealed={false}/>
+              revealed={false}
+              columns={getRoomMethod(room).columns}/>
           </div>
           <div>
             {submitError&&<div style={{color:T.orange,fontWeight:600,marginBottom:10,textAlign:"center",fontSize:14}}>{submitError}</div>}
@@ -1091,7 +1136,8 @@ export default function App() {
                   cards={boardCards} myId={myId} myName={myName}
                   onAddCard={handleAddCard} onMoveCard={handleMoveCard}
                   onReact={handleReact} onAddAction={()=>{}}
-                  revealed={false}/>
+                  revealed={false}
+                  columns={getRoomMethod(room).columns}/>
               </div>
             </div>
           </div>
@@ -1140,7 +1186,8 @@ export default function App() {
               cards={sorted} myId={myId} myName={myName}
               onAddCard={()=>{}} onMoveCard={handleMoveCard}
               onReact={handleReact} onAddAction={handleAddAction}
-              revealed={true}/>
+              revealed={true}
+              columns={getRoomMethod(room).columns}/>
           </div>
         </div>
       </div>
