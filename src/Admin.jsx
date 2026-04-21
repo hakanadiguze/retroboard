@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAllRooms, getAllRoomsAll, getAllTeams, getAllUsers, saveTeam, deleteTeam, deleteRoom, signOutUser, uid, nowISO, SUPERADMIN_EMAIL } from "./firebase.js";
 import { getRoomMethod, RETRO_METHODS } from "./methods.js";
+import { LogoIcon } from "./Logo.jsx";
 
 const T = {
   teal:"#0D9E9E", tealDark:"#076F6F", tealLight:"#7FDADA", tealBg:"#E6F7F7",
@@ -644,7 +645,7 @@ export default function AdminPanel({ user, onNewSession, onRejoinSession, onOpen
     <div style={{minHeight:"100vh",background:"#E8F8F5",fontFamily:"'Segoe UI',system-ui,sans-serif"}}>
       {/* Header */}
       <div style={{background:`linear-gradient(135deg,${T.tealDark},${T.teal})`,padding:"16px 28px",display:"flex",alignItems:"center",gap:16,boxShadow:`0 4px 20px ${T.teal}40`}}>
-        <div style={{fontSize:28}}>🔄</div>
+        <LogoIcon size={36}/>
         <div>
           <div style={{color:T.white,fontWeight:900,fontSize:20,display:"flex",alignItems:"center",gap:8}}>
             RetroBoard Admin

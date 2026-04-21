@@ -4,6 +4,7 @@ import { uid, nowISO, roomRef, fbGet, fbSet, signInWithGoogle, signOutUser, onAu
 import AdminPanel from "./Admin.jsx";
 import { ThemeBackground, ThemePicker, getBgUrl, saveBgUrl } from "./themes.jsx";
 import { RETRO_METHODS, getMethod, getColumns, getRoomMethod } from "./methods.js";
+import { LogoIcon, LogoFull } from "./Logo.jsx";
 
 const VERSION = "v5";
 
@@ -745,10 +746,7 @@ function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName=""
         <nav style={{position:"sticky",top:0,zIndex:100,display:"flex",alignItems:"center",gap:12,
           padding:"14px 24px",background:"rgba(5,13,20,0.85)",backdropFilter:"blur(16px)",
           borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:22}}>🔄</span>
-            <span style={{fontSize:17,fontWeight:900}}>RetroBoard</span>
-          </div>
+          <LogoFull size={38}/>
           <div style={{marginLeft:"auto",display:"flex",gap:10,alignItems:"center"}}>
             {adminUser ? (
               <button onClick={()=>window.location.hash="admin"}
@@ -1066,7 +1064,7 @@ function JoinScreen({ onJoin, roomId }) {
     <div style={{minHeight:"100vh",background:"#E8F8F5",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px"}}>
       <div style={{width:"100%",maxWidth:460,background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(13,158,158,.12)",padding:"36px 32px"}}>
         <div style={{textAlign:"center",marginBottom:26}}>
-          <div style={{fontSize:46,marginBottom:8}}>{isRevealed?"🎉":"🔄"}</div>
+          <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}>{isRevealed?<span style={{fontSize:46}}>🎉</span>:<LogoIcon size={56}/>}</div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:4}}>
             <h1 style={{fontSize:22,fontWeight:900,color:"#1a2e2e",margin:0}}>{isRevealed?"View Results":"You're invited!"}</h1>
             
@@ -1265,7 +1263,7 @@ export default function App() {
     return (
       <div style={{marginBottom:20}}>
         <div style={{display:"flex",alignItems:"center",gap:12,background:T.white,borderRadius:"16px 16px 0 0",padding:"12px 20px",boxShadow:`0 2px 8px ${T.teal}10`}}>
-          <div style={{width:34,height:34,borderRadius:10,background:`linear-gradient(135deg,${T.teal},${T.tealDark})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>🔄</div>
+          <LogoIcon size={34}/>
           <div>
             <div style={{fontWeight:800,fontSize:15,color:T.tealDark,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
               {room?.sessionName||"RetroBoard"}
@@ -1453,7 +1451,7 @@ export default function App() {
       <><ThemeBackground url={themeUrl}/>
       <div style={base}>
         <div style={{background:`linear-gradient(135deg,${T.tealDark},${T.teal})`,padding:"14px 24px",display:"flex",alignItems:"center",gap:14,boxShadow:`0 4px 20px ${T.teal}40`}}>
-          <div style={{fontSize:26}}>🔄</div>
+          <LogoIcon size={36}/>
           <div>
             <div style={{color:"#fff",fontWeight:900,fontSize:19,display:"flex",alignItems:"center",gap:8}}>
               {room.sessionName||"RetroBoard Results"}
