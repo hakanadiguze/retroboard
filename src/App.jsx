@@ -653,85 +653,359 @@ function SetupScreen({ hostName, onBack, onCreate, teams, isAdmin }) {
   );
 }
 
-// ─── HomeScreen ───────────────────────────────────────────────────────────────
+// ─── HomeScreen — Modern dark landing page ────────────────────────────────────
 function HomeScreen({ onSetup, onJoin, onAdminLogin, adminUser, prefilledName="" }) {
-  const [hostName,setHostName]=useState(prefilledName.slice(0,15));
-  const [howOpen,setHowOpen]=useState(false);
-  const [error,setError]=useState("");
-  const MAX=15;
-  const inp={width:"100%",padding:"12px 16px",borderRadius:12,border:`1.5px solid #DDE8E8`,fontSize:15,color:T.dark,outline:"none",boxSizing:"border-box",background:"#fff"};
+  const [hostName,setHostName] = useState(prefilledName.slice(0,15));
+  const [error,setError]       = useState("");
+  const MAX = 15;
+
+  const D = {
+    bg:       "#050d14",
+    card:     "rgba(255,255,255,0.04)",
+    border:   "rgba(255,255,255,0.08)",
+    teal:     "#0D9E9E",
+    tealDim:  "rgba(13,158,158,0.12)",
+    tealBord: "rgba(13,158,158,0.3)",
+    text:     "rgba(255,255,255,0.6)",
+    textSub:  "rgba(255,255,255,0.35)",
+    white:    "#ffffff",
+  };
+
+  const inputStyle = {
+    width:"100%", padding:"14px 18px", borderRadius:12,
+    background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)",
+    color:"#fff", fontSize:16, outline:"none", boxSizing:"border-box",
+    fontFamily:"inherit",
+  };
+
+  const METHODS_PREVIEW = [
+    { emoji:"🔄", name:"Stop / Start / Continue", tags:[{l:"🛑 Stop",c:"#FF6B6B"},{l:"🚀 Start",c:"#34D399"},{l:"✅ Continue",c:"#60A5FA"}] },
+    { emoji:"😤", name:"Mad / Sad / Glad",         tags:[{l:"😠 Mad",c:"#F87171"},{l:"😢 Sad",c:"#818CF8"},{l:"😄 Glad",c:"#FCD34D"}] },
+    { emoji:"⛵", name:"Sailboat",                  tags:[{l:"🏝️ Island",c:"#2DD4BF"},{l:"💨 Wind",c:"#38BDF8"},{l:"⚓ Anchor",c:"#A78BFA"},{l:"🪨 Rocks",c:"#FB923C"}] },
+    { emoji:"⭐", name:"Starfish",                  tags:[{l:"💎 Keep",c:"#34D399"},{l:"📉 Less",c:"#F472B6"},{l:"📈 More",c:"#818CF8"},{l:"🛑 Stop",c:"#F87171"},{l:"🚀 Start",c:"#FCD34D"}] },
+    { emoji:"📚", name:"4Ls",                       tags:[{l:"❤️ Liked",c:"#34D399"},{l:"🧠 Learned",c:"#38BDF8"},{l:"❌ Lacked",c:"#F87171"},{l:"🌟 Longed For",c:"#FCD34D"}] },
+    { emoji:"🔧", name:"DAKI",                      tags:[{l:"🗑️ Drop",c:"#F87171"},{l:"➕ Add",c:"#34D399"},{l:"💎 Keep",c:"#60A5FA"},{l:"⚡ Improve",c:"#FB923C"}] },
+  ];
+
+  const FEATURES = [
+    ["⚡","Real-time board","Post-its appear instantly for everyone — no refresh needed."],
+    ["👍","Emoji reactions","Vote with 👍👎❤️🔥💡. Most reacted cards rise to the top."],
+    ["📊","Health scores","Custom questions to track mood, stress and team satisfaction."],
+    ["🎯","Action tracking","Add actions with assignee & due date. Track across sprints."],
+    ["🔐","Admin panel","Manage teams, sessions, and actions from a central dashboard."],
+    ["📥","PDF export","Download full retro results as a styled PDF for sharing."],
+    ["🔗","Zero friction","Share a link. Team joins instantly. No accounts, no downloads."],
+    ["🎨","Custom themes","Set a background image to make each retro memorable."],
+  ];
+
+  const [howOpen, setHowOpen] = useState(false);
+  const particlesRef = useRef(null);
+
+  useEffect(()=>{
+    const container = particlesRef.current;
+    if(!container) return;
+    for(let i=0;i<18;i++){
+      const p = document.createElement("div");
+      const size = 3+Math.random()*10;
+      p.style.cssText = `
+        position:absolute;border-radius:50%;
+        width:${size}px;height:${size}px;
+        left:${Math.random()*100}%;
+        background:#0D9E9E;opacity:0;
+        animation:floatUp ${9+Math.random()*10}s linear ${Math.random()*10}s infinite;
+      `;
+      container.appendChild(p);
+    }
+    const style = document.createElement("style");
+    style.textContent = `
+      @keyframes floatUp {
+        0%   { transform:translateY(100vh) scale(0); opacity:0; }
+        10%  { opacity:0.12; }
+        90%  { opacity:0.12; }
+        100% { transform:translateY(-10vh) scale(1); opacity:0; }
+      }
+    `;
+    document.head.appendChild(style);
+    return ()=>{ document.head.removeChild(style); };
+  },[]);
+    width:"100%", padding:"14px 18px", borderRadius:12,
+    background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)",
+    color:D.white, fontSize:16, outline:"none", boxSizing:"border-box",
+    fontFamily:"inherit",
+  };
+
   return (
-    <div style={{minHeight:"100vh",background:"#E8F8F5",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px 16px"}}>
-      <div style={{width:"100%",maxWidth:540,background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(13,158,158,.13)",padding:"36px 32px",border:`1.5px solid ${T.tealLight}40`}}>
-        <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{fontSize:48,marginBottom:6}}>🔄</div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:4}}>
-            <h1 style={{fontSize:30,fontWeight:900,color:"#1a2e2e",margin:0}}>RetroBoard</h1>
-            <span style={{background:T.tealBg,color:T.tealDark,borderRadius:8,padding:"3px 10px",fontSize:13,fontWeight:800}}>{VERSION}</span>
-          </div>
-          <p style={{color:"#7a9a9a",margin:0,fontSize:14}}>Real-time retrospectives for agile teams</p>
-        </div>
+    <div style={{minHeight:"100vh",background:D.bg,color:D.white,fontFamily:"'Segoe UI',system-ui,sans-serif",overflowX:"hidden"}}>
 
-        <div style={{background:"#E8F8F5",borderRadius:16,padding:"20px 20px 22px",border:`1.5px solid ${T.tealLight}60`,marginBottom:10}}>
-          <div style={{fontWeight:800,fontSize:15,color:T.tealDark,marginBottom:3}}>⚡ Quick Start</div>
-          <div style={{color:"#7a9a9a",fontSize:13,marginBottom:14}}>Create instantly, share link, start your retro.</div>
-          <div style={{position:"relative"}}>
-            <input style={inp} placeholder="Your name (as host)" value={hostName} maxLength={MAX}
-              onChange={e=>{setHostName(e.target.value.slice(0,MAX));setError("");}} autoFocus/>
-            <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:11,color:hostName.length>=MAX?"#F07030":T.gray300}}>{hostName.length}/{MAX}</span>
-          </div>
-          {error&&<div style={{color:T.orange,fontSize:13,marginTop:8}}>{error}</div>}
-          <button onClick={()=>{if(!hostName.trim()){setError("Please enter your name");return;}onSetup(hostName.trim());}}
-            style={{marginTop:12,width:"100%",background:"#E8A870",color:"#fff",border:"none",borderRadius:14,padding:"13px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>
-            Configure & Create Session →
-          </button>
-        </div>
+      {/* ── Ambient glow ── */}
+      <div style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",
+        background:"radial-gradient(ellipse 70% 50% at 50% -5%, rgba(13,158,158,0.18) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 80% 80%, rgba(26,42,74,0.2) 0%, transparent 70%)"}}/>
 
-        <div style={{border:`1.5px solid ${T.gray100}`,borderRadius:16,overflow:"hidden",marginBottom:10}}>
-          <button onClick={()=>setHowOpen(o=>!o)} style={{width:"100%",background:"#fff",border:"none",padding:"14px 20px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",fontWeight:600,fontSize:14,color:"#2a5a5a"}}>
-            <span style={{color:"#e05050",fontWeight:900}}>?</span><span>How does this work?</span>
-            <span style={{marginLeft:"auto",color:T.gray300,fontSize:18,transform:howOpen?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>›</span>
-          </button>
-          {howOpen&&(
-            <div style={{padding:"4px 20px 16px",borderTop:`1px solid ${T.gray100}`,background:"#fafefe"}}>
+      {/* ── Floating particles ── */}
+      <div ref={particlesRef} style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",overflow:"hidden"}}/>
+
+      <div style={{position:"relative",zIndex:1}}>
+
+        {/* ── NAV ── */}
+        <nav style={{position:"sticky",top:0,zIndex:100,display:"flex",alignItems:"center",gap:12,
+          padding:"14px 24px",background:"rgba(5,13,20,0.85)",backdropFilter:"blur(16px)",
+          borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:22}}>🔄</span>
+            <span style={{fontSize:17,fontWeight:900}}>RetroBoard</span>
+            <span style={{background:"linear-gradient(135deg,#0D9E9E,#076F6F)",color:"#fff",
+              borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>{VERSION}</span>
+          </div>
+          <div style={{marginLeft:"auto",display:"flex",gap:10,alignItems:"center"}}>
+            {adminUser ? (
+              <button onClick={()=>window.location.hash="admin"}
+                style={{display:"flex",alignItems:"center",gap:8,background:"rgba(13,158,158,0.15)",
+                  border:"1px solid rgba(13,158,158,0.3)",color:"#7FDADA",borderRadius:10,
+                  padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13}}>
+                <img src={adminUser.photoURL} alt="" style={{width:20,height:20,borderRadius:"50%"}}/>
+                Admin Panel
+              </button>
+            ) : (
+              <button onClick={onAdminLogin}
+                style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.12)",
+                  color:"rgba(255,255,255,0.7)",borderRadius:10,padding:"8px 16px",
+                  cursor:"pointer",fontWeight:600,fontSize:13}}>
+                🔐 Admin
+              </button>
+            )}
+          </div>
+        </nav>
+
+        {/* ── HERO ── */}
+        <section style={{minHeight:"88vh",display:"flex",flexDirection:"column",alignItems:"center",
+          justifyContent:"center",padding:"60px 24px 48px",textAlign:"center"}}>
+
+          {/* Eyebrow */}
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,
+            background:D.tealDim,border:`1px solid ${D.tealBord}`,
+            borderRadius:100,padding:"6px 18px",fontSize:12,fontWeight:700,
+            color:"#7FDADA",marginBottom:28,letterSpacing:"0.5px"}}>
+            ✦ Free · No sign-up · Real-time
+          </div>
+
+          {/* Headline */}
+          <h1 style={{fontSize:"clamp(36px,7vw,72px)",fontWeight:900,lineHeight:1.1,
+            margin:"0 0 24px",maxWidth:700}}>
+            Run better{" "}
+            <span style={{background:"linear-gradient(135deg,#0D9E9E,#7FDADA)",
+              WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+              backgroundClip:"text"}}>
+              retrospectives
+            </span>
+            {" "}with your team
+          </h1>
+
+          <p style={{fontSize:"clamp(15px,2.5vw,19px)",color:D.text,maxWidth:520,
+            lineHeight:1.65,margin:"0 0 44px"}}>
+            Create a session in seconds, share a link, and collaborate on post-its,
+            health scores and action items — all in real-time.
+          </p>
+
+          {/* CTA */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:12,justifyContent:"center",marginBottom:20,width:"100%",maxWidth:420}}>
+            <input
+              value={hostName} maxLength={MAX} autoFocus
+              onChange={e=>{setHostName(e.target.value.slice(0,MAX));setError("");}}
+              onKeyDown={e=>e.key==="Enter"&&(hostName.trim()?onSetup(hostName.trim()):setError("Please enter your name"))}
+              placeholder="Your name (as host)…"
+              style={{...inputStyle,textAlign:"center",fontSize:15}}
+            />
+            {error&&<div style={{color:"#FB923C",fontSize:13,width:"100%",textAlign:"center"}}>{error}</div>}
+            <button
+              onClick={()=>{ if(!hostName.trim()){setError("Please enter your name");return;} onSetup(hostName.trim()); }}
+              style={{width:"100%",background:"linear-gradient(135deg,#0D9E9E,#076F6F)",color:"#fff",
+                border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,
+                cursor:"pointer",boxShadow:"0 8px 32px rgba(13,158,158,0.35)",
+                transition:"transform .15s,box-shadow .15s"}}>
+              🚀 Configure &amp; Start Session →
+            </button>
+          </div>
+
+          {/* Stats */}
+          <div style={{display:"flex",gap:32,flexWrap:"wrap",justifyContent:"center",marginTop:16}}>
+            {[["6","Retro Methods"],["∞","Participants"],["0","Sign-ups"],["100%","Free"]].map(([n,l])=>(
+              <div key={l} style={{textAlign:"center"}}>
+                <div style={{fontSize:26,fontWeight:900,color:"#7FDADA"}}>{n}</div>
+                <div style={{fontSize:11,color:D.textSub,marginTop:2}}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── BOARD PREVIEW ── */}
+        <div style={{margin:"0 auto 80px",maxWidth:860,padding:"0 20px"}}>
+          <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",
+            borderRadius:20,overflow:"hidden",boxShadow:"0 40px 80px rgba(0,0,0,0.5)"}}>
+            {/* Window bar */}
+            <div style={{background:"rgba(255,255,255,0.04)",borderBottom:"1px solid rgba(255,255,255,0.06)",
+              padding:"12px 20px",display:"flex",alignItems:"center",gap:8}}>
+              {["#FF5F57","#FEBC2E","#28C840"].map(c=>(
+                <div key={c} style={{width:10,height:10,borderRadius:"50%",background:c}}/>
+              ))}
+              <span style={{marginLeft:12,fontSize:11,color:"rgba(255,255,255,0.25)"}}>
+                retro.hakanadiguzel.com · Sprint 42 Retro · ⭐ Starfish
+              </span>
+            </div>
+            {/* Mini board */}
+            <div style={{padding:20,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
               {[
-                ["🚀","Create a session","Enter your name, configure health questions and choose your retro method (Stop/Start/Continue, Mad/Sad/Glad, Sailboat, Starfish, 4Ls, DAKI)."],
-                ["🔗","Share the link","Copy the session link and send it to your team. No sign-up needed — they just open the link and enter their name."],
-                ["🗒️","Add post-its","Everyone adds cards to the shared board in real-time. Each card belongs to a category in your chosen method (e.g. Stop 🔴, Start 🟢, Continue 🔵)."],
-                ["📊","Rate health questions","Privately score team health questions like mood, stress, and role satisfaction on a 1–5 scale."],
-                ["✅","Submit","Submit your scores when ready. Post-its are visible to everyone throughout the session."],
-                ["🎉","Host reveals","When everyone is done, the host reveals the scores. All results appear on the shared board."],
-                ["👍","React & vote","React to post-its with 👍👎❤️🔥💡. Cards with the most reactions float to the top."],
-                ["⚡","Add actions","Double-click any post-it to add an action item with assignee and due date."],
-                ["📥","Export PDF","Download a full PDF report of scores and post-its, grouped by category."],
-              ].map(([icon,title,desc])=>(
-                <div key={title} style={{display:"flex",gap:12,padding:"8px 0",borderBottom:`1px solid ${T.gray50}`}}>
-                  <div style={{fontSize:15,width:26,flexShrink:0,marginTop:2}}>{icon}</div>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:13,color:"#2a5a5a"}}>{title}</div>
-                    <div style={{fontSize:12,color:"#7a9a9a",marginTop:1,lineHeight:1.5}}>{desc}</div>
-                  </div>
+                {col:"💎 Keep",c:"#34D399",bg:"#F0FFF8",notes:["Daily standups are efficient ✓","Pair programming sessions 👍×3"]},
+                {col:"🛑 Stop",c:"#F87171",bg:"#FFF1F1",notes:["Too many back-to-back meetings","Late PR reviews ❤️×2"]},
+                {col:"🚀 Start",c:"#FCD34D",bg:"#FFFBEB",notes:["Weekly tech debt session 🔥×1","Design reviews earlier in sprint"]},
+              ].map(({col,c,bg,notes})=>(
+                <div key={col} style={{borderRadius:12,padding:12,background:"rgba(255,255,255,0.03)"}}>
+                  <div style={{fontSize:11,fontWeight:800,color:c,marginBottom:8}}>{col}</div>
+                  {notes.map(n=>(
+                    <div key={n} style={{background:bg,borderRadius:6,padding:"7px 9px",
+                      borderTop:`3px solid ${c}`,fontSize:10,color:"rgba(0,0,0,0.65)",
+                      marginBottom:6,lineHeight:1.4}}>{n}</div>
+                  ))}
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
 
-        <div style={{borderTop:`1.5px solid ${T.gray100}`,paddingTop:14,textAlign:"center"}}>
-          {adminUser?(
-            <button onClick={()=>window.location.hash="admin"}
-              style={{background:T.tealBg,color:T.tealDark,border:`1.5px solid ${T.teal}40`,borderRadius:12,padding:"10px 20px",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:8,margin:"0 auto"}}>
-              <img src={adminUser.photoURL} alt="" style={{width:22,height:22,borderRadius:"50%"}}/>
-              Admin Panel →
+        {/* ── RETRO METHODS ── */}
+        <section style={{padding:"0 24px 80px",maxWidth:1040,margin:"0 auto"}}>
+          <div style={{textAlign:"center",fontSize:11,fontWeight:700,color:"#7FDADA",
+            letterSpacing:"1px",textTransform:"uppercase",marginBottom:10}}>
+            Retro Methods
+          </div>
+          <h2 style={{textAlign:"center",fontSize:"clamp(22px,4vw,38px)",fontWeight:900,
+            margin:"0 0 10px"}}>Choose your format</h2>
+          <p style={{textAlign:"center",color:D.text,fontSize:15,margin:"0 auto 44px",maxWidth:460}}>
+            6 proven retrospective methods built in. Pick the right one for each sprint.
+          </p>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+            {METHODS_PREVIEW.map(m=>(
+              <div key={m.name} style={{background:D.card,border:`1px solid ${D.border}`,
+                borderRadius:16,padding:"22px 20px",transition:"border-color .2s,transform .2s,background .2s",
+                cursor:"default"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(13,158,158,0.35)";e.currentTarget.style.background="rgba(13,158,158,0.06)";e.currentTarget.style.transform="translateY(-3px)";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=D.border;e.currentTarget.style.background=D.card;e.currentTarget.style.transform="translateY(0)";}}>
+                <div style={{fontSize:30,marginBottom:10}}>{m.emoji}</div>
+                <div style={{fontSize:15,fontWeight:800,marginBottom:6}}>{m.name}</div>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  {m.tags.map(t=>(
+                    <span key={t.l} style={{borderRadius:100,padding:"3px 10px",fontSize:10,fontWeight:700,
+                      color:t.c,border:`1px solid ${t.c}44`,background:`${t.c}12`}}>
+                      {t.l}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── FEATURES ── */}
+        <section style={{padding:"0 24px 80px",maxWidth:1040,margin:"0 auto"}}>
+          <div style={{textAlign:"center",fontSize:11,fontWeight:700,color:"#7FDADA",
+            letterSpacing:"1px",textTransform:"uppercase",marginBottom:10}}>
+            Features
+          </div>
+          <h2 style={{textAlign:"center",fontSize:"clamp(22px,4vw,38px)",fontWeight:900,
+            margin:"0 0 10px"}}>Everything your team needs</h2>
+          <p style={{textAlign:"center",color:D.text,fontSize:15,margin:"0 auto 44px",maxWidth:460}}>
+            Built for Scrum Masters, Agile Leads, and remote teams of all sizes.
+          </p>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))",gap:14}}>
+            {FEATURES.map(([icon,title,desc])=>(
+              <div key={title} style={{background:D.card,border:`1px solid ${D.border}`,
+                borderRadius:16,padding:"22px 20px",transition:"border-color .2s,transform .2s"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(13,158,158,0.3)";e.currentTarget.style.transform="translateY(-2px)";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=D.border;e.currentTarget.style.transform="translateY(0)";}}>
+                <div style={{fontSize:26,marginBottom:10}}>{icon}</div>
+                <div style={{fontSize:14,fontWeight:800,marginBottom:6}}>{title}</div>
+                <div style={{fontSize:12,color:D.text,lineHeight:1.55}}>{desc}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── BOTTOM CTA ── */}
+        <section style={{padding:"0 24px 80px",maxWidth:760,margin:"0 auto"}}>
+          <div style={{background:"linear-gradient(135deg,rgba(13,158,158,0.14),rgba(7,111,111,0.08))",
+            border:"1px solid rgba(13,158,158,0.22)",borderRadius:24,padding:"56px 40px",textAlign:"center"}}>
+            <h2 style={{fontSize:"clamp(22px,4vw,38px)",fontWeight:900,margin:"0 0 14px"}}>
+              Ready for your next retro?
+            </h2>
+            <p style={{color:D.text,fontSize:16,margin:"0 0 32px"}}>
+              Free, instant, no sign-up required. Your team will thank you.
+            </p>
+            <input
+              value={hostName} maxLength={MAX}
+              onChange={e=>{setHostName(e.target.value.slice(0,MAX));setError("");}}
+              onKeyDown={e=>e.key==="Enter"&&(hostName.trim()?onSetup(hostName.trim()):setError("Please enter your name"))}
+              placeholder="Your name as host…"
+              style={{...inputStyle,maxWidth:340,display:"block",margin:"0 auto 14px",textAlign:"center"}}
+            />
+            {error&&<div style={{color:"#FB923C",fontSize:13,marginBottom:12}}>{error}</div>}
+            <button
+              onClick={()=>{ if(!hostName.trim()){setError("Please enter your name");return;} onSetup(hostName.trim()); }}
+              style={{background:"linear-gradient(135deg,#0D9E9E,#076F6F)",color:"#fff",border:"none",
+                borderRadius:14,padding:"14px 32px",fontWeight:800,fontSize:16,cursor:"pointer",
+                boxShadow:"0 8px 32px rgba(13,158,158,0.35)"}}>
+              🚀 Configure &amp; Start Session →
             </button>
-          ):(
-            <button onClick={onAdminLogin} style={{background:"none",color:T.gray500,border:`1.5px solid ${T.gray100}`,borderRadius:12,padding:"10px 20px",fontWeight:600,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:8,margin:"0 auto"}}>
-              <span style={{fontSize:16}}>🔐</span> Admin Login (Google)
-            </button>
-          )}
-        </div>
+            <p style={{marginTop:20,fontSize:12,color:D.textSub}}>
+              Built by <span style={{color:"#0D9E9E",fontWeight:700}}>Hakan</span> · Free forever
+            </p>
+          </div>
+        </section>
+
+        {/* ── HOW IT WORKS ── */}
+        <section style={{padding:"0 24px 80px",maxWidth:760,margin:"0 auto"}}>
+          <div style={{textAlign:"center",fontSize:11,fontWeight:700,color:"#7FDADA",
+            letterSpacing:"1px",textTransform:"uppercase",marginBottom:10}}>How it works</div>
+          <h2 style={{textAlign:"center",fontSize:"clamp(22px,4vw,38px)",fontWeight:900,
+            margin:"0 0 40px"}}>From zero to retro in 60 seconds</h2>
+          <div style={{display:"flex",flexDirection:"column",gap:0}}>
+            {[
+              ["🚀","Create a session","Enter your name, configure health check questions, and choose your retro method — Stop/Start/Continue, Sailboat, Starfish and more."],
+              ["🔗","Share the link","Copy the session link and send it to your team. No sign-up, no download — they click the link and enter their name."],
+              ["🗒️","Add post-its","Everyone adds cards to the shared board in real-time. Cards are grouped by category and visible to the whole team instantly."],
+              ["📊","Rate health questions","Each participant privately scores team health questions like mood, stress, and role satisfaction."],
+              ["🎉","Host reveals results","When everyone is ready, the host reveals scores. All results appear at once on the shared board."],
+              ["👍","React & discuss","Vote on cards with 👍👎❤️🔥💡. The most important cards rise to the top automatically."],
+              ["⚡","Capture actions","Double-click any card to add an action item with an assignee and due date. Track completion from the admin panel."],
+              ["📥","Export & archive","Download a full PDF of results. All sessions are stored in your admin panel for future reference."],
+            ].map(([icon,title,desc],i)=>(
+              <div key={title} style={{display:"flex",gap:20,padding:"20px 0",
+                borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,flexShrink:0}}>
+                  <div style={{width:40,height:40,borderRadius:12,
+                    background:"rgba(13,158,158,0.12)",border:"1px solid rgba(13,158,158,0.25)",
+                    display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>
+                    {icon}
+                  </div>
+                  {i<7&&<div style={{width:1,flex:1,background:"rgba(255,255,255,0.06)",margin:"8px 0"}}/>}
+                </div>
+                <div style={{paddingTop:8}}>
+                  <div style={{fontWeight:800,fontSize:15,marginBottom:4}}>{title}</div>
+                  <div style={{fontSize:13,color:D.text,lineHeight:1.6}}>{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── FOOTER ── */}
+        <footer style={{textAlign:"center",padding:"28px 24px",
+          color:"rgba(255,255,255,0.2)",fontSize:13,
+          borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+          RetroBoard{" "}
+          <span style={{color:"#0D9E9E",fontWeight:700}}>{VERSION}</span>
+          {" "}· Built with ❤️ for agile teams
+        </footer>
+
       </div>
-      <div style={{marginTop:18,color:"#7a9a9a",fontSize:13}}>Built by <span style={{color:T.teal,fontWeight:700}}>Hakan</span> · RetroBoard {VERSION}</div>
     </div>
   );
 }
