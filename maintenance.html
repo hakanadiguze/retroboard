@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RetroBoard – Closed</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #050d14 0%, #0d1a1a 100%);
+      color: #fff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      text-align: center;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      padding: 48px 36px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    }
+
+    .icon {
+      font-size: 64px;
+      margin-bottom: 24px;
+      animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 900;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #0D9E9E, #7FDADA);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .message {
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 32px;
+      padding: 16px;
+      background: rgba(13,158,158,0.1);
+      border: 1px solid rgba(13,158,158,0.2);
+      border-radius: 12px;
+      line-height: 1.6;
+    }
+
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #0D9E9E, #076F6F);
+      color: #fff;
+      text-decoration: none;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 6px 24px rgba(13,158,158,0.35);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(13,158,158,0.45);
+    }
+
+    .footer {
+      margin-top: 28px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.25);
+    }
+
+    .footer a {
+      color: #0D9E9E;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">🔧</div>
+    <h1>RetroBoard</h1>
+    <p class="subtitle">Currently Closed</p>
+    
+    <div class="message">
+      RetroBoard has been closed. For agile retrospectives and team collaboration tools, please visit AgileVibe.
+    </div>
+
+    <a href="https://www.agilevibe.net" class="button">
+      Visit AgileVibe →
+    </a>
+
+    <div class="footer">
+      Questions? Contact: <a href="mailto:info@agilevibe.com">info@agilevibe.com</a>
+    </div>
+  </div>
+</body>
+</html>
+
