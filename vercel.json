@@ -1,8 +1,11 @@
 {
-  "rewrites": [
+  "buildCommand": "echo 'Maintenance mode enabled'",
+  "outputDirectory": "public",
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/maintenance.html"
+      "src": "/(.*)",
+      "dest": "/maintenance.html"
     }
   ]
 }
+
