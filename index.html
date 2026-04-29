@@ -1,42 +1,127 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RetroBoard – Agile Retrospectives</title>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RetroBoard – Closed</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #050d14 0%, #0d1a1a 100%);
+      color: #fff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
 
-    <!-- Favicon: teal circular arrows -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32' fill='%230D9E9E'/%3E%3Cpath d='M20 32a12 12 0 0 1 19.7-9.2L37 25.5h8V17.5l-2.8 2.8A18 18 0 0 0 14 32h6zm24 0a12 12 0 0 1-19.7 9.2L27 38.5h-8v8l2.8-2.8A18 18 0 0 0 50 32h-6z' fill='white'/%3E%3C/svg%3E" />
+    .container {
+      max-width: 500px;
+      text-align: center;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      padding: 48px 36px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    }
 
-    <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-SNG7X3CLH2"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-SNG7X3CLH2');
-    </script>
+    .icon {
+      font-size: 64px;
+      margin-bottom: 24px;
+      animation: bounce 2s infinite;
+    }
 
-    <!-- jsPDF for PDF export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <style>
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { background: #E8F8F5; }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
 
-    <!-- Buy Me a Coffee widget -->
-    <script data-name="BMC-Widget" data-cfasync="false"
-      src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js"
-      data-id="hakanadigui"
-      data-description="Support me on Buy me a coffee!"
-      data-message=""
-      data-color="#5F7FFF"
-      data-position="Right"
-      data-x_margin="18"
-      data-y_margin="18">
-    </script>
+    h1 {
+      font-size: 32px;
+      font-weight: 900;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #0D9E9E, #7FDADA);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .message {
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 32px;
+      padding: 16px;
+      background: rgba(13,158,158,0.1);
+      border: 1px solid rgba(13,158,158,0.2);
+      border-radius: 12px;
+      line-height: 1.6;
+    }
+
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #0D9E9E, #076F6F);
+      color: #fff;
+      text-decoration: none;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 6px 24px rgba(13,158,158,0.35);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(13,158,158,0.45);
+    }
+
+    .footer {
+      margin-top: 28px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.25);
+    }
+
+    .footer a {
+      color: #0D9E9E;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">🔧</div>
+    <h1>RetroBoard</h1>
+    <p class="subtitle">Currently Closed</p>
+    
+    <div class="message">
+      RetroBoard has been closed. For agile retrospectives and team collaboration tools, please visit AgileVibe.
+    </div>
+
+    <a href="https://www.agilevibe.net" class="button">
+      Visit AgileVibe →
+    </a>
+
+    <div class="footer">
+      Questions? Contact: <a href="mailto:info@agilevibe.com">info@agilevibe.com</a>
+    </div>
+  </div>
+</body>
 </html>
+

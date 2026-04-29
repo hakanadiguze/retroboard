@@ -1,12 +1,7 @@
 {
-  "rewrites": [
-    {
-      "source": "/",
-      "destination": "/maintenance.html"
-    },
-    {
-      "source": "/:path((?!maintenance\\.html).*)",
-      "destination": "/maintenance.html"
-    }
-  ]
+  "buildCommand": "npm run build",
+  "framework": "vite"
 }
+
+
+
